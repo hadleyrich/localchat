@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Configure Local OpenAI Server",
+        "title": "Configure Local Chat Server",
         "data": {
           "server_name": "Server Name",
           "base_url": "Server URL",
@@ -27,7 +27,7 @@
         }
       },
       "reconfigure": {
-        "title": "Reconfigure Local OpenAI Server",
+        "title": "Reconfigure Local Chat Server",
         "data": {
           "server_name": "Server Name",
           "base_url": "Server URL",

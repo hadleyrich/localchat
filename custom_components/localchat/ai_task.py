@@ -1,4 +1,4 @@
-"""AI Task integration for Local OpenAI LLM."""
+"""AI Task integration for Local Chat."""
 
 from __future__ import annotations
 
@@ -11,15 +11,15 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util.json import json_loads
 
-from . import LocalAiConfigEntry
-from .entity import LocalAiEntity
+from . import LocalChatConfigEntry
+from .entity import LocalChatEntity
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: LocalAiConfigEntry,
+    config_entry: LocalChatConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up AI Task entities."""
@@ -28,16 +28,16 @@ async def async_setup_entry(
             continue
 
         async_add_entities(
-            [LocalAITaskEntity(config_entry, subentry)],
+            [LocalChatAITaskEntity(config_entry, subentry)],
             config_subentry_id=subentry.subentry_id,
         )
 
 
-class LocalAITaskEntity(
+class LocalChatAITaskEntity(
     ai_task.AITaskEntity,
-    LocalAiEntity,
+    LocalChatEntity,
 ):
-    """Local OpenAI LLM AI Task entity."""
+    """Local Chat AI Task entity."""
 
     _attr_name = None
     _attr_supported_features = (

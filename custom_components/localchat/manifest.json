@@ -1,6 +1,6 @@
 {
-  "domain": "local_openai",
-  "name": "Local OpenAI LLM",
+  "domain": "localchat",
+  "name": "Local Chat",
   "after_dependencies": [
     "assist_pipeline",
     "intent"

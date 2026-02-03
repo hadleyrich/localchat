@@ -1,4 +1,4 @@
-"""Config flow for Local OpenAI LLM integration."""
+"""Config flow for Local Chat integration."""
 
 from __future__ import annotations
 
@@ -86,8 +86,8 @@ async def prepare_weaviate_class(hass: HomeAssistant, weaviate_opts: dict[str, A
     LOGGER.debug("Weaviate connectivity confirmed and class is prepared")
 
 
-class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Local OpenAI LLM."""
+class LocalChatConfigFlow(ConfigFlow, domain=DOMAIN):
+    """Handle a config flow for Local Chat."""
 
     VERSION = 1
 

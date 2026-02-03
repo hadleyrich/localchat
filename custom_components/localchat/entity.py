@@ -38,7 +38,7 @@ from openai.types.shared_params import FunctionDefinition, ResponseFormatJSONSch
 from openai.types.shared_params.response_format_json_schema import JSONSchema
 from voluptuous_openapi import convert
 
-from . import LocalAiConfigEntry
+from . import LocalChatConfigEntry
 from .const import (
     CONF_CHAT_TEMPLATE_KWARGS,
     CONF_CHAT_TEMPLATE_OPTS,
@@ -323,12 +323,12 @@ async def _transform_stream(
             yield chunk
 
 
-class LocalAiEntity(Entity):
-    """Base entity for Open Router."""
+class LocalChatEntity(Entity):
+    """Base entity for Local Chat."""
 
     _attr_has_entity_name = True
 
-    def __init__(self, entry: LocalAiConfigEntry, subentry: ConfigSubentry) -> None:
+    def __init__(self, entry: LocalChatConfigEntry, subentry: ConfigSubentry) -> None:
         """Initialize the entity."""
         self.entry = entry
         self.subentry = subentry
