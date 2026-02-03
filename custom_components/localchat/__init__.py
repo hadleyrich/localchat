@@ -86,25 +86,37 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalChatConfigEntry) ->
 
                 # Process user memories
                 if user_memories_bank_id:
-                    await process_conversation_memory(
-                        hass,
-                        hindsight_base_url,
-                        user_memories_bank_id,
-                        conversation_history,
-                        conversation_id,
-                        user_memories_prompt,
-                    )
+                    try:
+                        await process_conversation_memory(
+                            hass,
+                            hindsight_base_url,
+                            user_memories_bank_id,
+                            conversation_history,
+                            conversation_id,
+                            user_memories_prompt,
+                        )
+                    except Exception:
+                        LOGGER.exception(
+                            "Error processing user memories for bank: %s",
+                            user_memories_bank_id,
+                        )
 
                 # Process agent traits
                 if agent_traits_bank_id:
-                    await process_conversation_memory(
-                        hass,
-                        hindsight_base_url,
-                        agent_traits_bank_id,
-                        conversation_history,
-                        conversation_id,
-                        agent_traits_prompt,
-                    )
+                    try:
+                        await process_conversation_memory(
+                            hass,
+                            hindsight_base_url,
+                            agent_traits_bank_id,
+                            conversation_history,
+                            conversation_id,
+                            agent_traits_prompt,
+                        )
+                    except Exception:
+                        LOGGER.exception(
+                            "Error processing agent traits for bank: %s",
+                            agent_traits_bank_id,
+                        )
 
             # Register event listener
             entry.async_on_unload(
