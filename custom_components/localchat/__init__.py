@@ -12,10 +12,10 @@ from openai import AsyncOpenAI, AuthenticationError, OpenAIError
 
 from .const import (
     CONF_BASE_URL,
-    CONF_HINDSIGHT_BANK_ID,
+    CONF_HINDSIGHT_AGENT_TRAITS_PROMPT,
     CONF_HINDSIGHT_BASE_URL,
     CONF_HINDSIGHT_ENABLED,
-    CONF_HINDSIGHT_SUMMARIZATION_PROMPT,
+    CONF_HINDSIGHT_USER_MEMORIES_PROMPT,
     EVENT_CONVERSATION_FINISHED,
     LOGGER,
 )
@@ -58,12 +58,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalChatConfigEntry) ->
     # Set up Hindsight event listener if enabled
     if entry.data.get(CONF_HINDSIGHT_ENABLED, False):
         hindsight_base_url = entry.data.get(CONF_HINDSIGHT_BASE_URL)
-        hindsight_bank_id = entry.data.get(CONF_HINDSIGHT_BANK_ID)
-        hindsight_prompt = entry.data.get(CONF_HINDSIGHT_SUMMARIZATION_PROMPT)
+        user_memories_prompt = entry.data.get(CONF_HINDSIGHT_USER_MEMORIES_PROMPT)
+        agent_traits_prompt = entry.data.get(CONF_HINDSIGHT_AGENT_TRAITS_PROMPT)
 
-        if hindsight_base_url and hindsight_bank_id:
+        if hindsight_base_url:
             LOGGER.info(
-                "Setting up Hindsight integration with bank: %s", hindsight_bank_id
+                "Setting up Hindsight integration with auto-generated bank names"
             )
 
             async def handle_conversation_finished(event: Event) -> None:
@@ -74,20 +74,37 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalChatConfigEntry) ->
 
                 conversation_id = event.data.get("conversation_id")
                 conversation_history = event.data.get("conversation_history", [])
+                user_memories_bank_id = event.data.get("user_memories_bank_id")
+                agent_traits_bank_id = event.data.get("agent_traits_bank_id")
 
                 LOGGER.debug(
-                    "Processing conversation %s for Hindsight storage", conversation_id
+                    "Processing conversation %s for Hindsight storage in banks: %s, %s",
+                    conversation_id,
+                    user_memories_bank_id,
+                    agent_traits_bank_id,
                 )
 
-                # Process conversation memory asynchronously (non-blocking)
-                await process_conversation_memory(
-                    hass,
-                    hindsight_base_url,
-                    hindsight_bank_id,
-                    conversation_history,
-                    conversation_id,
-                    hindsight_prompt,
-                )
+                # Process user memories
+                if user_memories_bank_id:
+                    await process_conversation_memory(
+                        hass,
+                        hindsight_base_url,
+                        user_memories_bank_id,
+                        conversation_history,
+                        conversation_id,
+                        user_memories_prompt,
+                    )
+
+                # Process agent traits
+                if agent_traits_bank_id:
+                    await process_conversation_memory(
+                        hass,
+                        hindsight_base_url,
+                        agent_traits_bank_id,
+                        conversation_history,
+                        conversation_id,
+                        agent_traits_prompt,
+                    )
 
             # Register event listener
             entry.async_on_unload(
@@ -96,7 +113,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalChatConfigEntry) ->
                 )
             )
         else:
-            LOGGER.warning("Hindsight enabled but base URL or bank ID not configured")
+            LOGGER.warning("Hindsight enabled but base URL not configured")
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 

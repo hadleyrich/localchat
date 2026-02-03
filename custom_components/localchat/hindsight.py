@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from hindsight_client import Hindsight
 
-from .const import DEFAULT_HINDSIGHT_SUMMARIZATION_PROMPT, LOGGER
+from .const import DEFAULT_HINDSIGHT_USER_MEMORIES_PROMPT, LOGGER
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -47,6 +47,9 @@ async def summarize_conversation(
 
     # Create summarization prompt using template
     formatted_prompt = summarization_prompt.format(conversation_text=conversation_text)
+
+    # Debug logging to show the prompt being used
+    LOGGER.debug("Hindsight summarization prompt: %s", formatted_prompt)
 
     try:
         # If specific AI Task entity provided, use it, otherwise find one
@@ -121,7 +124,7 @@ async def process_conversation_memory(
     """
     try:
         # Use default prompt if not provided
-        prompt = summarization_prompt or DEFAULT_HINDSIGHT_SUMMARIZATION_PROMPT
+        prompt = summarization_prompt or DEFAULT_HINDSIGHT_USER_MEMORIES_PROMPT
 
         # Summarize the conversation to get list of facts
         facts = await summarize_conversation(
