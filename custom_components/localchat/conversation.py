@@ -84,11 +84,12 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
         result = conversation.async_get_result_from_chat_log(user_input, chat_log)
 
         # Fire event for conversation completion with Hindsight integration
+        # Only fire when conversation is complete (not continuing)
         # Check if Hindsight is enabled in the parent config entry
         parent_options = self.entry.data
         hindsight_enabled = parent_options.get(CONF_HINDSIGHT_ENABLED, False)
 
-        if hindsight_enabled:
+        if hindsight_enabled and not result.continue_conversation:
             # Extract conversation history from chat_log
             conversation_history = self._extract_conversation_history(chat_log)
 
