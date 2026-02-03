@@ -301,7 +301,7 @@ async def retrieve_mental_models(
                         get_err,
                     )
 
-            combined = "\n\n".join(contents) if contents else ""
+            combined = "\n\n".join(contents)
             if combined:
                 LOGGER.debug(
                     "Retrieved %d mental models from bank %s (%d total chars)",

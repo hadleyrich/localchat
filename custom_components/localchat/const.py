@@ -68,11 +68,13 @@ Extract and format as a numbered list of personality traits/behaviors (one per l
 EVENT_CONVERSATION_FINISHED = f"{DOMAIN}_conversation_finished"
 
 # Default mental model configurations
+# These are automatically created when mental models are enabled
+# Each mental model is a pre-computed summary that defines agent behavior or preferences
 DEFAULT_MENTAL_MODELS = [
     {
-        "name": "Assistant Personality",
-        "source_query": "How should a Home Assistant voice assistant speak, behave, and present itself?",
-        "tags": ["personality", "behavior", "tone"],
+        "name": "Assistant Personality",  # Human-readable name
+        "source_query": "How should a Home Assistant voice assistant speak, behave, and present itself?",  # Query used to generate content
+        "tags": ["personality", "behavior", "tone"],  # Tags for filtering/organization
     },
     {
         "name": "Humor Guidelines",
