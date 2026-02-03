@@ -122,6 +122,9 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
         """
         history = []
         for content in chat_log.content:
+            # Skip tool results, only process text messages
+            if isinstance(content, conversation.ToolResultContent):
+                continue
             msg = {
                 "role": content.role,
                 "content": content.content or "",
