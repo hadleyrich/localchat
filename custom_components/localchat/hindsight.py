@@ -171,8 +171,8 @@ async def process_conversation_memory(
                 bank_id,
             )
         finally:
-            # Close the client connection
-            client.close()
+            # Close the client connection asynchronously
+            await client.aclose()
 
     except Exception:
         LOGGER.exception("Error processing conversation memory")
@@ -214,7 +214,7 @@ async def ensure_mental_models(
         try:
             # Get existing mental models (bank may not exist yet, which is fine)
             try:
-                existing = client.list_mental_models(bank_id=bank_id)
+                existing = await client.alist_mental_models(bank_id=bank_id)
                 existing_names = {m.name for m in existing.items}
             except Exception as list_err:
                 LOGGER.debug(
@@ -232,7 +232,7 @@ async def ensure_mental_models(
                         model_def["name"],
                         bank_id,
                     )
-                    result = client.create_mental_model(
+                    result = await client.acreate_mental_model(
                         bank_id=bank_id,
                         name=model_def["name"],
                         source_query=model_def["source_query"],
@@ -249,7 +249,7 @@ async def ensure_mental_models(
                         bank_id,
                     )
         finally:
-            client.close()
+            await client.aclose()
 
     except Exception:
         LOGGER.exception("Error ensuring mental models")
@@ -276,7 +276,7 @@ async def retrieve_mental_models(
         try:
             # List all mental models (bank may not exist yet)
             try:
-                mental_models = client.list_mental_models(bank_id=bank_id)
+                mental_models = await client.alist_mental_models(bank_id=bank_id)
             except Exception as list_err:
                 LOGGER.debug(
                     "Could not list mental models from bank %s (may not exist yet): %s",
@@ -294,7 +294,7 @@ async def retrieve_mental_models(
             for mental_model in mental_models.items:
                 try:
                     # Get full mental model details including content
-                    full_model = client.get_mental_model(
+                    full_model = await client.aget_mental_model(
                         bank_id=bank_id,
                         mental_model_id=mental_model.id,
                     )
@@ -329,7 +329,7 @@ async def retrieve_mental_models(
             return combined
 
         finally:
-            client.close()
+            await client.aclose()
 
     except Exception:
         LOGGER.exception("Error retrieving mental models")

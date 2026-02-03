@@ -66,83 +66,91 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalChatConfigEntry) ->
                 "Setting up Hindsight integration with auto-generated bank names"
             )
 
-            async def handle_conversation_finished(event: Event) -> None:
-                """Handle conversation finished event."""
+            def handle_conversation_finished(event: Event) -> None:
+                """Handle conversation finished event and create async task."""
                 # Only process events for this config entry
                 if event.data.get("config_entry_id") != entry.entry_id:
                     return
 
-                conversation_id = event.data.get("conversation_id")
-                conversation_history = event.data.get("conversation_history", [])
-                user_memories_bank_id = event.data.get("user_memories_bank_id")
-                agent_traits_bank_id = event.data.get("agent_traits_bank_id")
+                async def _process_conversation() -> None:
+                    """Process the conversation asynchronously."""
+                    conversation_id = event.data.get("conversation_id")
+                    conversation_history = event.data.get("conversation_history", [])
+                    user_memories_bank_id = event.data.get("user_memories_bank_id")
+                    agent_traits_bank_id = event.data.get("agent_traits_bank_id")
 
-                LOGGER.debug(
-                    "Processing conversation %s for Hindsight storage in banks: %s, %s",
-                    conversation_id,
-                    user_memories_bank_id,
-                    agent_traits_bank_id,
+                    LOGGER.debug(
+                        "Processing conversation %s for Hindsight storage in banks: %s, %s",
+                        conversation_id,
+                        user_memories_bank_id,
+                        agent_traits_bank_id,
+                    )
+
+                    # Ensure mental models exist in both banks
+                    # Mental models are now stored in the same banks as the observations they summarize
+                    if user_memories_bank_id:
+                        try:
+                            await ensure_mental_models(
+                                hindsight_base_url,
+                                user_memories_bank_id,
+                            )
+                        except Exception:
+                            LOGGER.exception(
+                                "Error ensuring mental models for bank: %s",
+                                user_memories_bank_id,
+                            )
+
+                    if agent_traits_bank_id:
+                        try:
+                            await ensure_mental_models(
+                                hindsight_base_url,
+                                agent_traits_bank_id,
+                            )
+                        except Exception:
+                            LOGGER.exception(
+                                "Error ensuring mental models for bank: %s",
+                                agent_traits_bank_id,
+                            )
+
+                    # Process user memories
+                    if user_memories_bank_id:
+                        try:
+                            await process_conversation_memory(
+                                hass,
+                                hindsight_base_url,
+                                user_memories_bank_id,
+                                conversation_history,
+                                conversation_id,
+                                user_memories_prompt,
+                            )
+                        except Exception:
+                            LOGGER.exception(
+                                "Error processing user memories for bank: %s",
+                                user_memories_bank_id,
+                            )
+
+                    # Process agent traits
+                    if agent_traits_bank_id:
+                        try:
+                            await process_conversation_memory(
+                                hass,
+                                hindsight_base_url,
+                                agent_traits_bank_id,
+                                conversation_history,
+                                conversation_id,
+                                agent_traits_prompt,
+                            )
+                        except Exception:
+                            LOGGER.exception(
+                                "Error processing agent traits for bank: %s",
+                                agent_traits_bank_id,
+                            )
+
+                # Create async task for processing
+                hass.async_create_task(
+                    _process_conversation(),
+                    "localchat_hindsight_conversation_processing",
                 )
-
-                # Ensure mental models exist in both banks
-                # Mental models are now stored in the same banks as the observations they summarize
-                if user_memories_bank_id:
-                    try:
-                        await ensure_mental_models(
-                            hindsight_base_url,
-                            user_memories_bank_id,
-                        )
-                    except Exception:
-                        LOGGER.exception(
-                            "Error ensuring mental models for bank: %s",
-                            user_memories_bank_id,
-                        )
-
-                if agent_traits_bank_id:
-                    try:
-                        await ensure_mental_models(
-                            hindsight_base_url,
-                            agent_traits_bank_id,
-                        )
-                    except Exception:
-                        LOGGER.exception(
-                            "Error ensuring mental models for bank: %s",
-                            agent_traits_bank_id,
-                        )
-
-                # Process user memories
-                if user_memories_bank_id:
-                    try:
-                        await process_conversation_memory(
-                            hass,
-                            hindsight_base_url,
-                            user_memories_bank_id,
-                            conversation_history,
-                            conversation_id,
-                            user_memories_prompt,
-                        )
-                    except Exception:
-                        LOGGER.exception(
-                            "Error processing user memories for bank: %s",
-                            user_memories_bank_id,
-                        )
-
-                # Process agent traits
-                if agent_traits_bank_id:
-                    try:
-                        await process_conversation_memory(
-                            hass,
-                            hindsight_base_url,
-                            agent_traits_bank_id,
-                            conversation_history,
-                            conversation_id,
-                            agent_traits_prompt,
-                        )
-                    except Exception:
-                        LOGGER.exception(
-                            "Error processing agent traits for bank: %s",
-                            agent_traits_bank_id,
-                        )
 
             # Register event listener
             entry.async_on_unload(
