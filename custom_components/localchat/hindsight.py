@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from hindsight_client import Hindsight
 
-from .const import LOGGER
+from .const import DEFAULT_HINDSIGHT_SUMMARIZATION_PROMPT, LOGGER
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 async def summarize_conversation(
     hass: HomeAssistant,
     conversation_history: list[dict[str, Any]],
+    summarization_prompt: str,
     ai_task_entity_id: str | None = None,
 ) -> str | None:
     """
@@ -23,6 +24,7 @@ async def summarize_conversation(
     Args:
         hass: Home Assistant instance
         conversation_history: List of conversation messages
+        summarization_prompt: Prompt template for summarization (with {conversation_text} placeholder)
         ai_task_entity_id: Optional AI Task entity to use for summarization
 
     Returns:
@@ -42,18 +44,8 @@ async def summarize_conversation(
         LOGGER.debug("No conversation content to summarize")
         return None
 
-    # Create summarization prompt
-    summarization_prompt = f"""Analyze the following conversation and extract:
-1. Any facts mentioned about users, preferences, or context
-2. Any patterns in how the user communicates or what they prefer
-3. Any important information that should be remembered for future conversations
-
-Only include information that would be useful to remember long-term. Be concise.
-
-Conversation:
-{conversation_text}
-
-Extract and format as a list of facts/preferences:"""
+    # Create summarization prompt using template
+    formatted_prompt = summarization_prompt.format(conversation_text=conversation_text)
 
     try:
         # If specific AI Task entity provided, use it, otherwise find one
@@ -72,7 +64,7 @@ Extract and format as a list of facts/preferences:"""
             "generate_data",
             {
                 "entity_id": ai_task_entity_id,
-                "task": summarization_prompt,
+                "task": formatted_prompt,
             },
             blocking=True,
             return_response=True,
@@ -95,6 +87,7 @@ async def process_conversation_memory(
     bank_id: str,
     conversation_history: list[dict[str, Any]],
     conversation_id: str,
+    summarization_prompt: str | None = None,
     ai_task_entity_id: str | None = None,
 ) -> None:
     """
@@ -106,13 +99,17 @@ async def process_conversation_memory(
         bank_id: Memory bank identifier
         conversation_history: List of conversation messages
         conversation_id: Unique identifier for this conversation
+        summarization_prompt: Optional custom prompt template for summarization
         ai_task_entity_id: Optional AI Task entity to use for summarization
 
     """
     try:
+        # Use default prompt if not provided
+        prompt = summarization_prompt or DEFAULT_HINDSIGHT_SUMMARIZATION_PROMPT
+
         # Summarize the conversation
         summary = await summarize_conversation(
-            hass, conversation_history, ai_task_entity_id
+            hass, conversation_history, prompt, ai_task_entity_id
         )
 
         if not summary:
@@ -123,15 +120,24 @@ async def process_conversation_memory(
         client = Hindsight(base_url=hindsight_base_url, timeout=30.0)
 
         try:
-            # Store in Hindsight with metadata
-            await client.aretain(
+            # Store in Hindsight using batch method for better performance
+            # Convert single summary into batch format with conversation messages as items
+            batch_items = [
+                {
+                    "content": summary,
+                    "metadata": {
+                        "conversation_id": conversation_id,
+                        "message_count": len(conversation_history),
+                        "source": "localchat_conversation",
+                    },
+                }
+            ]
+
+            await client.aretain_batch(
                 bank_id=bank_id,
-                content=summary,
-                metadata={
-                    "conversation_id": conversation_id,
-                    "message_count": len(conversation_history),
-                    "source": "localchat_conversation",
-                },
+                items=batch_items,
+                document_id=conversation_id,
+                retain_async=False,  # Process synchronously to ensure completion
             )
 
             LOGGER.info(

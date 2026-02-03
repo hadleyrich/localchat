@@ -15,6 +15,7 @@ from .const import (
     CONF_HINDSIGHT_BANK_ID,
     CONF_HINDSIGHT_BASE_URL,
     CONF_HINDSIGHT_ENABLED,
+    CONF_HINDSIGHT_SUMMARIZATION_PROMPT,
     EVENT_CONVERSATION_FINISHED,
     LOGGER,
 )
@@ -58,6 +59,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalChatConfigEntry) ->
     if entry.data.get(CONF_HINDSIGHT_ENABLED, False):
         hindsight_base_url = entry.data.get(CONF_HINDSIGHT_BASE_URL)
         hindsight_bank_id = entry.data.get(CONF_HINDSIGHT_BANK_ID)
+        hindsight_prompt = entry.data.get(CONF_HINDSIGHT_SUMMARIZATION_PROMPT)
 
         if hindsight_base_url and hindsight_bank_id:
             LOGGER.info(
@@ -84,6 +86,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalChatConfigEntry) ->
                     hindsight_bank_id,
                     conversation_history,
                     conversation_id,
+                    hindsight_prompt,
                 )
 
             # Register event listener
