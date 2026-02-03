@@ -17,7 +17,7 @@
           "hindsight_enabled": "Enable long-term memory storage using Hindsight",
           "hindsight_base_url": "URL of your Hindsight server (e.g., http://localhost:8888)",
           "hindsight_bank_id": "Memory bank identifier for storing conversation memories",
-          "hindsight_summarization_prompt": "Prompt template for extracting facts from conversations. Use {conversation_text} placeholder."
+          "hindsight_summarization_prompt": "Prompt template for extracting facts from conversations. Use '{'{conversation_text}'}' placeholder."
         }
       },
       "reconfigure": {
@@ -36,7 +36,7 @@
           "hindsight_enabled": "Enable long-term memory storage using Hindsight",
           "hindsight_base_url": "URL of your Hindsight server (e.g., http://localhost:8888)",
           "hindsight_bank_id": "Memory bank identifier for storing conversation memories",
-          "hindsight_summarization_prompt": "Prompt template for extracting facts from conversations. Use {conversation_text} placeholder."
+          "hindsight_summarization_prompt": "Prompt template for extracting facts from conversations. Use '{'{conversation_text}'}' placeholder."
         }
       }
     },
