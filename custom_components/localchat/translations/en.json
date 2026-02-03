@@ -6,10 +6,16 @@
         "data": {
           "server_name": "Server Name",
           "base_url": "Server URL",
-          "api_key": "API key"
+          "api_key": "API key",
+          "hindsight_enabled": "Enable Hindsight Memory",
+          "hindsight_base_url": "Hindsight Server URL",
+          "hindsight_bank_id": "Hindsight Memory Bank ID"
         },
         "data_description": {
-          "api_key": "If required to authenticate with the service"
+          "api_key": "If required to authenticate with the service",
+          "hindsight_enabled": "Enable long-term memory storage using Hindsight",
+          "hindsight_base_url": "URL of your Hindsight server (e.g., http://localhost:8888)",
+          "hindsight_bank_id": "Memory bank identifier for storing conversation memories"
         }
       },
       "reconfigure": {
@@ -17,10 +23,16 @@
         "data": {
           "server_name": "Server Name",
           "base_url": "Server URL",
-          "api_key": "API key"
+          "api_key": "API key",
+          "hindsight_enabled": "Enable Hindsight Memory",
+          "hindsight_base_url": "Hindsight Server URL",
+          "hindsight_bank_id": "Hindsight Memory Bank ID"
         },
         "data_description": {
-          "api_key": "If required to authenticate with the service"
+          "api_key": "If required to authenticate with the service",
+          "hindsight_enabled": "Enable long-term memory storage using Hindsight",
+          "hindsight_base_url": "URL of your Hindsight server (e.g., http://localhost:8888)",
+          "hindsight_bank_id": "Memory bank identifier for storing conversation memories"
         }
       }
     },

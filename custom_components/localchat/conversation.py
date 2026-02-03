@@ -10,7 +10,13 @@ from homeassistant.helpers import llm
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import LocalChatConfigEntry
-from .const import DOMAIN
+from .const import (
+    CONF_HINDSIGHT_BANK_ID,
+    CONF_HINDSIGHT_BASE_URL,
+    CONF_HINDSIGHT_ENABLED,
+    DOMAIN,
+    EVENT_CONVERSATION_FINISHED,
+)
 from .entity import LocalChatEntity
 
 
@@ -75,4 +81,50 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
 
         await self._async_handle_chat_log(chat_log, user_input=user_input)
 
-        return conversation.async_get_result_from_chat_log(user_input, chat_log)
+        result = conversation.async_get_result_from_chat_log(user_input, chat_log)
+
+        # Fire event for conversation completion with Hindsight integration
+        # Check if Hindsight is enabled in the parent config entry
+        parent_options = self.entry.data
+        hindsight_enabled = parent_options.get(CONF_HINDSIGHT_ENABLED, False)
+
+        if hindsight_enabled:
+            # Extract conversation history from chat_log
+            conversation_history = self._extract_conversation_history(chat_log)
+
+            # Fire event asynchronously (non-blocking)
+            self.hass.bus.async_fire(
+                EVENT_CONVERSATION_FINISHED,
+                {
+                    "conversation_id": chat_log.conversation_id,
+                    "entity_id": self.entity_id,
+                    "config_entry_id": self.entry.entry_id,
+                    "hindsight_base_url": parent_options.get(CONF_HINDSIGHT_BASE_URL),
+                    "hindsight_bank_id": parent_options.get(CONF_HINDSIGHT_BANK_ID),
+                    "conversation_history": conversation_history,
+                },
+            )
+
+        return result
+
+    def _extract_conversation_history(
+        self, chat_log: conversation.ChatLog
+    ) -> list[dict]:
+        """
+        Extract conversation history from chat log.
+
+        Args:
+            chat_log: The chat log to extract from
+
+        Returns:
+            List of message dictionaries with role and content
+
+        """
+        history = []
+        for content in chat_log.content:
+            msg = {
+                "role": content.role,
+                "content": content.content or "",
+            }
+            history.append(msg)
+        return history

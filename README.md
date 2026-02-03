@@ -24,6 +24,7 @@
 - Added support for parallel tool calling
 - Added experimental Retrieval Augmented Generation capability
 - Added chat template arguments support
+- **Added Hindsight long-term memory integration for storing conversation memories**
 
 ---
 
@@ -110,6 +111,40 @@ Some models have been known to repeat the date/time back to the user without req
 
 #### <u>Disabled (no selection)</u>:
 If your model simply refuses to work well with any method, simply remove the value from the configuration option to disable this again.
+
+### Hindsight Long-Term Memory Integration
+
+This integration now supports **Hindsight**, a long-term memory system designed specifically for AI agents. When enabled, conversation histories are automatically summarized and stored in a Hindsight memory bank for future reference.
+
+#### Setup:
+
+1. Install and run Hindsight server (see [Hindsight documentation](https://hindsight.vectorize.io/))
+2. During Local Chat configuration, enable "Hindsight Memory"
+3. Provide your Hindsight server URL (e.g., `http://localhost:8888`)
+4. Specify a Memory Bank ID (e.g., `my-assistant`)
+
+#### How it Works:
+
+- After each conversation completes, the conversation history is automatically processed
+- The AI Task agent summarizes the conversation to extract:
+  - Facts mentioned about users, preferences, or context
+  - Patterns in communication style or preferences
+  - Important information for future conversations
+- Extracted memories are stored in your Hindsight memory bank
+- This happens asynchronously, so it doesn't slow down conversations
+
+#### Benefits:
+
+- Your AI agent remembers facts and preferences across sessions
+- No need to repeat information in every conversation
+- The agent builds a knowledge base about users and context over time
+- Uses Hindsight's multi-strategy retrieval (semantic, keyword, graph, temporal)
+
+#### Requirements:
+
+- A running Hindsight server
+- At least one AI Task agent configured (used for summarization)
+- Hindsight memory bank created (automatic on first use)
 
 
 ## Web Search & Additional Tools

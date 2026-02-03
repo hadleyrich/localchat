@@ -5,21 +5,17 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
-from collections.abc import AsyncGenerator, Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal
 
 import demoji
 import openai
-import voluptuous as vol
 from homeassistant.components import conversation
-from homeassistant.config_entries import ConfigSubentry
 from homeassistant.const import CONF_MODEL
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import llm, template
 from homeassistant.helpers.entity import Entity
-from openai._streaming import AsyncStream
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
     ChatCompletionChunk,
@@ -34,10 +30,8 @@ from openai.types.chat import (
 )
 from openai.types.chat.chat_completion_message_function_tool_call_param import Function
 from openai.types.shared_params import FunctionDefinition, ResponseFormatJSONSchema
-from openai.types.shared_params.response_format_json_schema import JSONSchema
 from voluptuous_openapi import convert
 
-from . import LocalChatConfigEntry
 from .const import (
     CONF_CHAT_TEMPLATE_KWARGS,
     CONF_CHAT_TEMPLATE_OPTS,
@@ -53,12 +47,22 @@ from .const import (
     LOGGER,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Callable
+
+    import voluptuous as vol
+    from homeassistant.config_entries import ConfigSubentry
+    from openai._streaming import AsyncStream
+    from openai.types.shared_params.response_format_json_schema import JSONSchema
+
+    from . import LocalChatConfigEntry
+
 # Max number of back and forth with the LLM to generate a response
 MAX_TOOL_ITERATIONS = 10
 
 
 def _remove_unsupported_keys_from_tool_schema(schema: dict[str, Any]) -> None:
-    """Remove keys not supported in the tool schema"""
+    """Remove keys not supported in the tool schema."""
     for key in ("allOf", "anyOf", "oneOf"):
         schema.pop(key, None)
 
@@ -470,7 +474,8 @@ class LocalChatEntity(Entity):
                 )
             except openai.OpenAIError as err:
                 LOGGER.exception(err)
-                raise HomeAssistantError("Error talking to API") from err
+                msg = "Error talking to API"
+                raise HomeAssistantError(msg) from err
 
             try:
                 model_args["messages"].extend(
@@ -487,7 +492,8 @@ class LocalChatEntity(Entity):
                 )
             except Exception as err:
                 LOGGER.exception(err)
-                raise HomeAssistantError("Error handling API response") from err
+                msg = "Error handling API response"
+                raise HomeAssistantError(msg) from err
 
             if not chat_log.unresponded_tool_results:
                 break
