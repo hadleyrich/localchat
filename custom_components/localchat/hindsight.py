@@ -352,12 +352,12 @@ async def retrieve_mental_models_from_multiple_banks(
 
     """
     all_contents = []
-    
+
     for bank_id in bank_ids:
         content = await retrieve_mental_models(hindsight_base_url, bank_id)
         if content:
             all_contents.append(content)
-    
+
     combined = "\n\n".join(all_contents)
     if combined:
         LOGGER.debug(
