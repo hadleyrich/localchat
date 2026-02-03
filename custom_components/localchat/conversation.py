@@ -11,7 +11,6 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import LocalChatConfigEntry
 from .const import (
-    CONF_HINDSIGHT_BANK_ID,
     CONF_HINDSIGHT_BASE_URL,
     CONF_HINDSIGHT_ENABLED,
     DOMAIN,
@@ -93,6 +92,12 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
             # Extract conversation history from chat_log
             conversation_history = self._extract_conversation_history(chat_log)
 
+            # Generate bank names from entity_id
+            # Extract the entity name (e.g., "llamacpp" from "conversation.llamacpp")
+            entity_name = self.entity_id.split(".")[-1] if "." in self.entity_id else self.entity_id
+            user_memories_bank_id = f"{entity_name}-userprefs"
+            agent_traits_bank_id = f"{entity_name}-traits"
+
             # Fire event asynchronously (non-blocking)
             self.hass.bus.async_fire(
                 EVENT_CONVERSATION_FINISHED,
@@ -101,7 +106,8 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
                     "entity_id": self.entity_id,
                     "config_entry_id": self.entry.entry_id,
                     "hindsight_base_url": parent_options.get(CONF_HINDSIGHT_BASE_URL),
-                    "hindsight_bank_id": parent_options.get(CONF_HINDSIGHT_BANK_ID),
+                    "user_memories_bank_id": user_memories_bank_id,
+                    "agent_traits_bank_id": agent_traits_bank_id,
                     "conversation_history": conversation_history,
                 },
             )
