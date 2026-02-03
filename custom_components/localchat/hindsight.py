@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any
 
 from hindsight_client import Hindsight
@@ -82,7 +83,8 @@ async def summarize_conversation(
                 if not line:
                     continue
                 # Remove numbering (1. 2. etc.), bullets (- * •), and leading/trailing whitespace
-                cleaned_line = line.lstrip("0123456789.-*• ").strip()
+                # Using regex to properly handle multi-digit numbers
+                cleaned_line = re.sub(r"^[\d\.\-\*•\s]+", "", line).strip()
                 if cleaned_line:
                     facts.append(cleaned_line)
 
@@ -150,7 +152,8 @@ async def process_conversation_memory(
                 bank_id=bank_id,
                 items=batch_items,
                 document_id=conversation_id,
-                retain_async=True,  # Process asynchronously for better performance
+                retain_async=True,  # Process asynchronously in background for better performance
+                # Note: This returns before facts are fully stored, but errors are handled by Hindsight server
             )
 
             LOGGER.info(
