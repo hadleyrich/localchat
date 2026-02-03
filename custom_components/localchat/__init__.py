@@ -15,11 +15,12 @@ from .const import (
     CONF_HINDSIGHT_AGENT_TRAITS_PROMPT,
     CONF_HINDSIGHT_BASE_URL,
     CONF_HINDSIGHT_ENABLED,
+    CONF_HINDSIGHT_MENTAL_MODELS_ENABLED,
     CONF_HINDSIGHT_USER_MEMORIES_PROMPT,
     EVENT_CONVERSATION_FINISHED,
     LOGGER,
 )
-from .hindsight import process_conversation_memory
+from .hindsight import ensure_mental_models, process_conversation_memory
 
 if TYPE_CHECKING:
     from homeassistant.core import Event, HomeAssistant
@@ -60,6 +61,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalChatConfigEntry) ->
         hindsight_base_url = entry.data.get(CONF_HINDSIGHT_BASE_URL)
         user_memories_prompt = entry.data.get(CONF_HINDSIGHT_USER_MEMORIES_PROMPT)
         agent_traits_prompt = entry.data.get(CONF_HINDSIGHT_AGENT_TRAITS_PROMPT)
+        mental_models_enabled = entry.data.get(CONF_HINDSIGHT_MENTAL_MODELS_ENABLED, True)
 
         if hindsight_base_url:
             LOGGER.info(
@@ -76,13 +78,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalChatConfigEntry) ->
                 conversation_history = event.data.get("conversation_history", [])
                 user_memories_bank_id = event.data.get("user_memories_bank_id")
                 agent_traits_bank_id = event.data.get("agent_traits_bank_id")
+                mental_models_bank_id = event.data.get("mental_models_bank_id")
 
                 LOGGER.debug(
-                    "Processing conversation %s for Hindsight storage in banks: %s, %s",
+                    "Processing conversation %s for Hindsight storage in banks: %s, %s, %s",
                     conversation_id,
                     user_memories_bank_id,
                     agent_traits_bank_id,
+                    mental_models_bank_id,
                 )
+
+                # Ensure mental models exist in the mental models bank if enabled
+                if mental_models_enabled and mental_models_bank_id:
+                    try:
+                        await ensure_mental_models(
+                            hindsight_base_url,
+                            mental_models_bank_id,
+                        )
+                    except Exception:
+                        LOGGER.exception(
+                            "Error ensuring mental models for bank: %s",
+                            mental_models_bank_id,
+                        )
 
                 # Process user memories
                 if user_memories_bank_id:
