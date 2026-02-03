@@ -47,7 +47,7 @@ Only include information that would be useful to remember long-term. Be concise.
 Conversation:
 {conversation_text}
 
-Extract and format as a list of facts/preferences:"""
+Extract and format as a numbered list of facts/preferences (one per line, starting with a number):"""
 
 # Event for conversation completion with Hindsight integration
 EVENT_CONVERSATION_FINISHED = f"{DOMAIN}_conversation_finished"

@@ -17,7 +17,7 @@ async def summarize_conversation(
     conversation_history: list[dict[str, Any]],
     summarization_prompt: str,
     ai_task_entity_id: str | None = None,
-) -> str | None:
+) -> list[str] | None:
     """
     Summarize conversation history to extract facts and preferences.
 
@@ -28,7 +28,7 @@ async def summarize_conversation(
         ai_task_entity_id: Optional AI Task entity to use for summarization
 
     Returns:
-        Summary text containing extracted facts and preferences, or None if failed
+        List of extracted facts/preferences, or None if failed
 
     """
     # Format conversation for summarization
@@ -73,7 +73,20 @@ async def summarize_conversation(
         if result and isinstance(result, dict):
             summary = result.get("data", "")
             LOGGER.debug("Generated conversation summary: %s", summary)
-            return summary
+
+            # Parse the summary to extract individual facts
+            # Expected format: numbered list (1. fact, 2. fact, etc.) or bullet points
+            facts = []
+            for raw_line in summary.split("\n"):
+                line = raw_line.strip()
+                if not line:
+                    continue
+                # Remove numbering (1. 2. etc.), bullets (- * •), and leading/trailing whitespace
+                cleaned_line = line.lstrip("0123456789.-*• ").strip()
+                if cleaned_line:
+                    facts.append(cleaned_line)
+
+            return facts if facts else None
         return None  # noqa: TRY300
 
     except Exception:
@@ -107,41 +120,43 @@ async def process_conversation_memory(
         # Use default prompt if not provided
         prompt = summarization_prompt or DEFAULT_HINDSIGHT_SUMMARIZATION_PROMPT
 
-        # Summarize the conversation
-        summary = await summarize_conversation(
+        # Summarize the conversation to get list of facts
+        facts = await summarize_conversation(
             hass, conversation_history, prompt, ai_task_entity_id
         )
 
-        if not summary:
-            LOGGER.debug("No summary generated, skipping Hindsight storage")
+        if not facts:
+            LOGGER.debug("No facts extracted, skipping Hindsight storage")
             return
 
         # Use official Hindsight client
         client = Hindsight(base_url=hindsight_base_url, timeout=30.0)
 
         try:
-            # Store in Hindsight using batch method for better performance
-            # Convert single summary into batch format with conversation messages as items
+            # Store each fact as a separate item in Hindsight batch
             batch_items = [
                 {
-                    "content": summary,
+                    "content": fact,
                     "metadata": {
                         "conversation_id": conversation_id,
                         "message_count": len(conversation_history),
                         "source": "localchat_conversation",
                     },
                 }
+                for fact in facts
             ]
 
             await client.aretain_batch(
                 bank_id=bank_id,
                 items=batch_items,
                 document_id=conversation_id,
-                retain_async=False,  # Process synchronously to ensure completion
+                retain_async=True,  # Process asynchronously for better performance
             )
 
             LOGGER.info(
-                "Successfully stored conversation memory in Hindsight bank: %s", bank_id
+                "Successfully stored %d facts from conversation in Hindsight bank: %s",
+                len(facts),
+                bank_id,
             )
         finally:
             # Close the client connection
@@ -149,4 +164,5 @@ async def process_conversation_memory(
 
     except Exception:
         LOGGER.exception("Error processing conversation memory")
+
 
