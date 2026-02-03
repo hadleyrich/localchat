@@ -233,8 +233,8 @@ class LocalChatConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
 
-class LocalAiSubentryFlowHandler(ConfigSubentryFlow):
-    """Handle subentry flow for Local OpenAI LLM."""
+class LocalChatSubentryFlowHandler(ConfigSubentryFlow):
+    """Handle subentry flow for Local Chat."""
 
     @staticmethod
     def strip_model_pathing(model_name: str) -> str:
@@ -243,7 +243,7 @@ class LocalAiSubentryFlowHandler(ConfigSubentryFlow):
         return matches[1] if matches else model_name
 
 
-class ConversationFlowHandler(LocalAiSubentryFlowHandler):
+class ConversationFlowHandler(LocalChatSubentryFlowHandler):
     """Handle subentry flow."""
 
     def get_llm_apis(self) -> list[SelectOptionDict]:
@@ -481,7 +481,7 @@ class ConversationFlowHandler(LocalAiSubentryFlowHandler):
         )
 
 
-class AITaskDataFlowHandler(LocalAiSubentryFlowHandler):
+class AITaskDataFlowHandler(LocalChatSubentryFlowHandler):
     """Handle subentry flow."""
 
     async def async_step_user(
