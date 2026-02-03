@@ -15,6 +15,7 @@ from .const import (
     CONF_HINDSIGHT_ENABLED,
     DOMAIN,
     EVENT_CONVERSATION_FINISHED,
+    LOGGER,
 )
 from .entity import LocalChatEntity
 from .hindsight import retrieve_mental_models_from_multiple_banks
@@ -63,6 +64,8 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
         options = self.subentry.data
         system_prompt = options.get(CONF_PROMPT)
 
+        LOGGER.debug(f"System prompt: {system_prompt}")
+
         # Retrieve and inject mental models if Hindsight is enabled
         parent_options = self.entry.data
         hindsight_enabled = parent_options.get(CONF_HINDSIGHT_ENABLED, False)
@@ -71,7 +74,11 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
             hindsight_base_url = parent_options.get(CONF_HINDSIGHT_BASE_URL)
             if hindsight_base_url:
                 # Generate bank IDs from entity name
-                entity_name = self.entity_id.split(".")[-1] if "." in self.entity_id else self.entity_id
+                entity_name = (
+                    self.entity_id.split(".")[-1]
+                    if "." in self.entity_id
+                    else self.entity_id
+                )
                 traits_bank_id = f"{entity_name}-traits"
                 userprefs_bank_id = f"{entity_name}-userprefs"
 
@@ -83,8 +90,19 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
 
                 # Inject mental models into system prompt if content exists
                 if mental_model_content:
-                    mental_models_section = f"\n\n# Personality and Preferences\n{mental_model_content}"
-                    system_prompt = (system_prompt or "") + mental_models_section
+                    mental_models_section = (
+                        f"\n\n# Personality and Preferences\n{mental_model_content}"
+                    )
+                    user_input.extra_system_prompt = (
+                        user_input.extra_system_prompt or ""
+                    ) + mental_models_section
+                    LOGGER.debug(
+                        f"Injected mental models into system prompt for entity {self.entity_id}."
+                    )
+
+                LOGGER.debug(
+                    f"User extra system prompt: {user_input.extra_system_prompt}"
+                )
 
         hass_apis = [api.id for api in llm.async_get_apis(self.hass)]
 
@@ -118,7 +136,11 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
 
             # Generate bank names from entity_id
             # Extract the entity name (e.g., "llamacpp" from "conversation.llamacpp")
-            entity_name = self.entity_id.split(".")[-1] if "." in self.entity_id else self.entity_id
+            entity_name = (
+                self.entity_id.split(".")[-1]
+                if "." in self.entity_id
+                else self.entity_id
+            )
             user_memories_bank_id = f"{entity_name}-userprefs"
             agent_traits_bank_id = f"{entity_name}-traits"
 
