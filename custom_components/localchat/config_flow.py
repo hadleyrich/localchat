@@ -37,11 +37,16 @@ from .const import (
     CONF_CHAT_TEMPLATE_OPTS,
     CONF_CONTENT_INJECTION_METHOD,
     CONF_CONTENT_INJECTION_METHODS,
+    CONF_HINDSIGHT_BANK_ID,
+    CONF_HINDSIGHT_BASE_URL,
+    CONF_HINDSIGHT_ENABLED,
+    CONF_HINDSIGHT_SUMMARIZATION_PROMPT,
     CONF_MAX_MESSAGE_HISTORY,
     CONF_PARALLEL_TOOL_CALLS,
     CONF_SERVER_NAME,
     CONF_STRIP_EMOJIS,
     CONF_TEMPERATURE,
+    DEFAULT_HINDSIGHT_SUMMARIZATION_PROMPT,
     DOMAIN,
     LOGGER,
     RECOMMENDED_CONVERSATION_OPTIONS,
@@ -74,6 +79,13 @@ class LocalChatConfigFlow(ConfigFlow, domain=DOMAIN):
                 ): str,
                 vol.Required(CONF_BASE_URL, default=""): str,
                 vol.Optional(CONF_API_KEY, default=""): str,
+                vol.Optional(CONF_HINDSIGHT_ENABLED, default=False): bool,
+                vol.Optional(CONF_HINDSIGHT_BASE_URL, default=""): str,
+                vol.Optional(CONF_HINDSIGHT_BANK_ID, default=""): str,
+                vol.Optional(
+                    CONF_HINDSIGHT_SUMMARIZATION_PROMPT,
+                    default=DEFAULT_HINDSIGHT_SUMMARIZATION_PROMPT,
+                ): str,
             }
         )
 

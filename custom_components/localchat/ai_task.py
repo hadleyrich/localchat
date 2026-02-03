@@ -4,15 +4,19 @@ from __future__ import annotations
 
 import logging
 from json import JSONDecodeError
+from typing import TYPE_CHECKING
 
 from homeassistant.components import ai_task, conversation
-from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util.json import json_loads
 
-from . import LocalChatConfigEntry
 from .entity import LocalChatEntity
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+
+    from . import LocalChatConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,8 +58,9 @@ class LocalChatAITaskEntity(
         await self._async_handle_chat_log(chat_log, task.name, task.structure)
 
         if not isinstance(chat_log.content[-1], conversation.AssistantContent):
+            msg = "Last content in chat log is not an AssistantContent"
             raise HomeAssistantError(
-                "Last content in chat log is not an AssistantContent"
+                msg
             )
 
         text = chat_log.content[-1].content or ""
@@ -68,7 +73,8 @@ class LocalChatAITaskEntity(
         try:
             data = json_loads(text)
         except JSONDecodeError as err:
-            raise HomeAssistantError("Error with structured response") from err
+            msg = "Error with structured response"
+            raise HomeAssistantError(msg) from err
 
         return ai_task.GenDataTaskResult(
             conversation_id=chat_log.conversation_id,
