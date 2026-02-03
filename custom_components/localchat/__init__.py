@@ -18,7 +18,7 @@ from .const import (
     EVENT_CONVERSATION_FINISHED,
     LOGGER,
 )
-from .hindsight import HindsightClient, process_conversation_memory
+from .hindsight import process_conversation_memory
 
 if TYPE_CHECKING:
     from homeassistant.core import Event, HomeAssistant
@@ -77,20 +77,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalChatConfigEntry) ->
                     "Processing conversation %s for Hindsight storage", conversation_id
                 )
 
-                # Create Hindsight client
-                hindsight_client = HindsightClient(hindsight_base_url)
-
-                try:
-                    # Process conversation memory asynchronously (non-blocking)
-                    await process_conversation_memory(
-                        hass,
-                        hindsight_client,
-                        hindsight_bank_id,
-                        conversation_history,
-                        conversation_id,
-                    )
-                finally:
-                    await hindsight_client.close()
+                # Process conversation memory asynchronously (non-blocking)
+                await process_conversation_memory(
+                    hass,
+                    hindsight_base_url,
+                    hindsight_bank_id,
+                    conversation_history,
+                    conversation_id,
+                )
 
             # Register event listener
             entry.async_on_unload(

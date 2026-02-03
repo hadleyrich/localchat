@@ -1,211 +1,19 @@
-"""Hindsight client wrapper for Local Chat."""
+"""Hindsight memory integration for Local Chat."""
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import aiohttp
+from hindsight_client import Hindsight
 
 from .const import LOGGER
 
-
-class HindsightClient:
-    """Client for interacting with Hindsight API."""
-
-    def __init__(self, base_url: str) -> None:
-        """Initialize the Hindsight client."""
-        self.base_url = base_url.rstrip("/")
-        self._session: aiohttp.ClientSession | None = None
-
-    async def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create aiohttp session."""
-        if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
-        return self._session
-
-    async def close(self) -> None:
-        """Close the client session."""
-        if self._session and not self._session.closed:
-            await self._session.close()
-
-    async def retain(
-        self,
-        bank_id: str,
-        content: str,
-        metadata: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """
-        Store information in a memory bank.
-
-        Args:
-            bank_id: The memory bank identifier
-            content: The information to store
-            metadata: Optional metadata to attach to the memory
-
-        Returns:
-            Response from the Hindsight API
-
-        """
-        session = await self._get_session()
-        url = f"{self.base_url}/api/v1/banks/{bank_id}/retain"
-
-        payload: dict[str, Any] = {"content": content}
-        if metadata:
-            payload["metadata"] = metadata
-
-        try:
-            async with session.post(
-                url, json=payload, timeout=aiohttp.ClientTimeout(total=30)
-            ) as response:
-                response.raise_for_status()
-                return await response.json()
-        except aiohttp.ClientError as err:
-            LOGGER.error("Error storing memory in Hindsight: %s", err)
-            raise
-        except TimeoutError:
-            LOGGER.error("Timeout storing memory in Hindsight")
-            raise
-
-    async def recall(
-        self,
-        bank_id: str,
-        query: str,
-        limit: int = 10,
-    ) -> dict[str, Any]:
-        """
-        Search and retrieve memories from a memory bank.
-
-        Args:
-            bank_id: The memory bank identifier
-            query: The search query
-            limit: Maximum number of results to return
-
-        Returns:
-            Response from the Hindsight API
-
-        """
-        session = await self._get_session()
-        url = f"{self.base_url}/api/v1/banks/{bank_id}/recall"
-
-        payload = {"query": query, "limit": limit}
-
-        try:
-            async with session.post(
-                url, json=payload, timeout=aiohttp.ClientTimeout(total=30)
-            ) as response:
-                response.raise_for_status()
-                return await response.json()
-        except aiohttp.ClientError as err:
-            LOGGER.error("Error recalling memory from Hindsight: %s", err)
-            raise
-        except TimeoutError:
-            LOGGER.error("Timeout recalling memory from Hindsight")
-            raise
-
-    async def reflect(
-        self,
-        bank_id: str,
-        query: str,
-    ) -> dict[str, Any]:
-        """
-        Generate a disposition-aware response using memories.
-
-        Args:
-            bank_id: The memory bank identifier
-            query: The query to reflect on
-
-        Returns:
-            Response from the Hindsight API
-
-        """
-        session = await self._get_session()
-        url = f"{self.base_url}/api/v1/banks/{bank_id}/reflect"
-
-        payload = {"query": query}
-
-        try:
-            async with session.post(
-                url, json=payload, timeout=aiohttp.ClientTimeout(total=30)
-            ) as response:
-                response.raise_for_status()
-                return await response.json()
-        except aiohttp.ClientError as err:
-            LOGGER.error("Error reflecting with Hindsight: %s", err)
-            raise
-        except TimeoutError:
-            LOGGER.error("Timeout reflecting with Hindsight")
-            raise
-
-    async def create_bank(
-        self,
-        bank_id: str,
-        mission: str | None = None,
-        directives: list[str] | None = None,
-    ) -> dict[str, Any]:
-        """
-        Create a new memory bank.
-
-        Args:
-            bank_id: The memory bank identifier
-            mission: Optional mission statement for the bank
-            directives: Optional list of directives for the bank
-
-        Returns:
-            Response from the Hindsight API
-
-        """
-        session = await self._get_session()
-        url = f"{self.base_url}/api/v1/banks"
-
-        payload: dict[str, Any] = {"bank_id": bank_id}
-        if mission:
-            payload["mission"] = mission
-        if directives:
-            payload["directives"] = directives
-
-        try:
-            async with session.post(
-                url, json=payload, timeout=aiohttp.ClientTimeout(total=30)
-            ) as response:
-                response.raise_for_status()
-                return await response.json()
-        except aiohttp.ClientError as err:
-            LOGGER.error("Error creating memory bank in Hindsight: %s", err)
-            raise
-        except TimeoutError:
-            LOGGER.error("Timeout creating memory bank in Hindsight")
-            raise
-
-    async def get_bank(self, bank_id: str) -> dict[str, Any]:
-        """
-        Get information about a memory bank.
-
-        Args:
-            bank_id: The memory bank identifier
-
-        Returns:
-            Response from the Hindsight API
-
-        """
-        session = await self._get_session()
-        url = f"{self.base_url}/api/v1/banks/{bank_id}"
-
-        try:
-            async with session.get(
-                url, timeout=aiohttp.ClientTimeout(total=30)
-            ) as response:
-                response.raise_for_status()
-                return await response.json()
-        except aiohttp.ClientError as err:
-            LOGGER.error("Error getting memory bank from Hindsight: %s", err)
-            raise
-        except TimeoutError:
-            LOGGER.error("Timeout getting memory bank from Hindsight")
-            raise
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
 
 
 async def summarize_conversation(
-    hass: Any,
+    hass: HomeAssistant,
     conversation_history: list[dict[str, Any]],
     ai_task_entity_id: str | None = None,
 ) -> str | None:
@@ -274,8 +82,7 @@ Extract and format as a list of facts/preferences:"""
             summary = result.get("data", "")
             LOGGER.debug("Generated conversation summary: %s", summary)
             return summary
-
-        return None
+        return None  # noqa: TRY300
 
     except Exception:
         LOGGER.exception("Error summarizing conversation")
@@ -283,8 +90,8 @@ Extract and format as a list of facts/preferences:"""
 
 
 async def process_conversation_memory(
-    hass: Any,
-    hindsight_client: HindsightClient,
+    hass: HomeAssistant,
+    hindsight_base_url: str,
     bank_id: str,
     conversation_history: list[dict[str, Any]],
     conversation_id: str,
@@ -295,7 +102,7 @@ async def process_conversation_memory(
 
     Args:
         hass: Home Assistant instance
-        hindsight_client: Hindsight client instance
+        hindsight_base_url: Base URL for Hindsight server
         bank_id: Memory bank identifier
         conversation_history: List of conversation messages
         conversation_id: Unique identifier for this conversation
@@ -312,22 +119,28 @@ async def process_conversation_memory(
             LOGGER.debug("No summary generated, skipping Hindsight storage")
             return
 
-        # Store in Hindsight with metadata
-        metadata = {
-            "conversation_id": conversation_id,
-            "message_count": len(conversation_history),
-            "source": "localchat_conversation",
-        }
+        # Use official Hindsight client
+        client = Hindsight(base_url=hindsight_base_url, timeout=30.0)
 
-        await hindsight_client.retain(
-            bank_id=bank_id,
-            content=summary,
-            metadata=metadata,
-        )
+        try:
+            # Store in Hindsight with metadata
+            await client.aretain(
+                bank_id=bank_id,
+                content=summary,
+                metadata={
+                    "conversation_id": conversation_id,
+                    "message_count": len(conversation_history),
+                    "source": "localchat_conversation",
+                },
+            )
 
-        LOGGER.info(
-            "Successfully stored conversation memory in Hindsight bank: %s", bank_id
-        )
+            LOGGER.info(
+                "Successfully stored conversation memory in Hindsight bank: %s", bank_id
+            )
+        finally:
+            # Close the client connection
+            client.close()
 
     except Exception:
         LOGGER.exception("Error processing conversation memory")
+
