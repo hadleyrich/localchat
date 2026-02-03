@@ -59,9 +59,7 @@ class LocalChatAITaskEntity(
 
         if not isinstance(chat_log.content[-1], conversation.AssistantContent):
             msg = "Last content in chat log is not an AssistantContent"
-            raise HomeAssistantError(
-                msg
-            )
+            raise HomeAssistantError(msg)
 
         text = chat_log.content[-1].content or ""
 

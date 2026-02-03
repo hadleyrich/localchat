@@ -168,5 +168,3 @@ async def process_conversation_memory(
 
     except Exception:
         LOGGER.exception("Error processing conversation memory")
-
-

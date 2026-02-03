@@ -337,9 +337,7 @@ class ConversationFlowHandler(LocalChatSubentryFlowHandler):
 
         schema = self.add_suggested_values_to_schema(await self.get_schema(), options)
 
-        return self.async_show_form(
-            step_id="reconfigure", data_schema=schema
-        )
+        return self.async_show_form(step_id="reconfigure", data_schema=schema)
 
 
 class AITaskDataFlowHandler(LocalChatSubentryFlowHandler):

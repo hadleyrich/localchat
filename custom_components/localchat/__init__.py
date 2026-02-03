@@ -96,9 +96,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalChatConfigEntry) ->
                 )
             )
         else:
-            LOGGER.warning(
-                "Hindsight enabled but base URL or bank ID not configured"
-            )
+            LOGGER.warning("Hindsight enabled but base URL or bank ID not configured")
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
