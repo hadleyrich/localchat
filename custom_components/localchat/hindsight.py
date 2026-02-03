@@ -195,9 +195,17 @@ async def ensure_mental_models(
         client = Hindsight(base_url=hindsight_base_url, timeout=30.0)
 
         try:
-            # Get existing mental models
-            existing = client.list_mental_models(bank_id=bank_id)
-            existing_names = {m.name for m in existing.items}
+            # Get existing mental models (bank may not exist yet, which is fine)
+            try:
+                existing = client.list_mental_models(bank_id=bank_id)
+                existing_names = {m.name for m in existing.items}
+            except Exception as list_err:
+                LOGGER.debug(
+                    "Bank %s may not exist yet, will create models: %s",
+                    bank_id,
+                    list_err,
+                )
+                existing_names = set()
 
             # Create missing mental models
             for model_def in models:
@@ -249,8 +257,16 @@ async def retrieve_mental_models(
         client = Hindsight(base_url=hindsight_base_url, timeout=30.0)
 
         try:
-            # List all mental models
-            mental_models = client.list_mental_models(bank_id=bank_id)
+            # List all mental models (bank may not exist yet)
+            try:
+                mental_models = client.list_mental_models(bank_id=bank_id)
+            except Exception as list_err:
+                LOGGER.debug(
+                    "Could not list mental models from bank %s (may not exist yet): %s",
+                    bank_id,
+                    list_err,
+                )
+                return ""
 
             if not mental_models.items:
                 LOGGER.debug("No mental models found in bank %s", bank_id)
@@ -259,26 +275,40 @@ async def retrieve_mental_models(
             # Retrieve content from each mental model
             contents = []
             for mental_model in mental_models.items:
-                # Get full mental model details including content
-                full_model = client.get_mental_model(
-                    bank_id=bank_id,
-                    mental_model_id=mental_model.id,
-                )
-                if full_model.content:
-                    contents.append(f"## {full_model.name}\n{full_model.content}")
-                    LOGGER.debug(
-                        "Retrieved mental model '%s' content (%d chars)",
-                        full_model.name,
-                        len(full_model.content),
+                try:
+                    # Get full mental model details including content
+                    full_model = client.get_mental_model(
+                        bank_id=bank_id,
+                        mental_model_id=mental_model.id,
+                    )
+                    # Mental models may not have content yet if still generating
+                    if full_model.content:
+                        contents.append(f"## {full_model.name}\n{full_model.content}")
+                        LOGGER.debug(
+                            "Retrieved mental model '%s' content (%d chars)",
+                            full_model.name,
+                            len(full_model.content),
+                        )
+                    else:
+                        LOGGER.debug(
+                            "Mental model '%s' has no content yet (still generating)",
+                            full_model.name,
+                        )
+                except Exception as get_err:
+                    LOGGER.warning(
+                        "Could not retrieve mental model %s: %s",
+                        mental_model.id,
+                        get_err,
                     )
 
             combined = "\n\n".join(contents) if contents else ""
-            LOGGER.debug(
-                "Retrieved %d mental models from bank %s (%d total chars)",
-                len(contents),
-                bank_id,
-                len(combined),
-            )
+            if combined:
+                LOGGER.debug(
+                    "Retrieved %d mental models from bank %s (%d total chars)",
+                    len(contents),
+                    bank_id,
+                    len(combined),
+                )
             return combined
 
         finally:
