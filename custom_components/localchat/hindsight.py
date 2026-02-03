@@ -65,7 +65,7 @@ async def summarize_conversation(
             "generate_data",
             {
                 "entity_id": ai_task_entity_id,
-                "task": formatted_prompt,
+                "instructions": formatted_prompt,
             },
             blocking=True,
             return_response=True,
