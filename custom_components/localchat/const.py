@@ -1,11 +1,11 @@
-"""Constants for the Local OpenAI LLM integration."""
+"""Constants for the Local Chat integration."""
 
 import logging
 
 from homeassistant.const import CONF_LLM_HASS_API, CONF_PROMPT
 from homeassistant.helpers import llm
 
-DOMAIN = "local_openai"
+DOMAIN = "localchat"
 LOGGER = logging.getLogger(__package__)
 
 CONF_RECOMMENDED = "recommended"

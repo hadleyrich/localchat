@@ -1,9 +1,9 @@
 {
-  "name": "Local OpenAI LLM",
+  "name": "Local Chat",
   "hide_default_branch": false,
   "homeassistant": "2025.7",
   "hacs": "2.0.5",
   "render_readme": true,
   "zip_release": true,
-  "filename": "local_openai.zip"
+  "filename": "localchat.zip"
 }

@@ -1,4 +1,4 @@
-"""Conversation support for Local OpenAI LLM."""
+"""Conversation support for Local Chat."""
 
 from typing import Literal
 
@@ -9,14 +9,14 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import llm
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from . import LocalAiConfigEntry
+from . import LocalChatConfigEntry
 from .const import DOMAIN
-from .entity import LocalAiEntity
+from .entity import LocalChatEntity
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: LocalAiConfigEntry,
+    config_entry: LocalChatConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up conversation entities."""
@@ -24,18 +24,18 @@ async def async_setup_entry(
         if subentry.subentry_type != "conversation":
             continue
         async_add_entities(
-            [LocalAiConversationEntity(config_entry, subentry)],
+            [LocalChatConversationEntity(config_entry, subentry)],
             config_subentry_id=subentry_id,
         )
 
 
-class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
-    """Local OpenAI LLM conversation agent."""
+class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEntity):
+    """Local Chat conversation agent."""
 
     _attr_name = None
     _attr_supports_streaming = True
 
-    def __init__(self, entry: LocalAiConfigEntry, subentry: ConfigSubentry) -> None:
+    def __init__(self, entry: LocalChatConfigEntry, subentry: ConfigSubentry) -> None:
         """Initialize the agent."""
         super().__init__(entry, subentry)
         if self.subentry.data.get(CONF_LLM_HASS_API):

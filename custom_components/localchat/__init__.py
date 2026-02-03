@@ -1,4 +1,4 @@
-"""The Local OpenAI LLM integration."""
+"""The Local Chat integration."""
 
 from __future__ import annotations
 
@@ -17,11 +17,11 @@ from .const import CONF_BASE_URL, DOMAIN, LOGGER
 
 PLATFORMS = [Platform.AI_TASK, Platform.CONVERSATION]
 
-type LocalAiConfigEntry = ConfigEntry[AsyncOpenAI]
+type LocalChatConfigEntry = ConfigEntry[AsyncOpenAI]
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: LocalAiConfigEntry) -> bool:
-    """Set up Local OpenAI LLM from a config entry."""
+async def async_setup_entry(hass: HomeAssistant, entry: LocalChatConfigEntry) -> bool:
+    """Set up Local Chat from a config entry."""
     client = AsyncOpenAI(
         base_url=entry.data[CONF_BASE_URL],
         api_key=entry.data.get(CONF_API_KEY, ""),
@@ -50,14 +50,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalAiConfigEntry) -> b
 
 
 async def _async_update_listener(
-    hass: HomeAssistant, entry: LocalAiConfigEntry
+    hass: HomeAssistant, entry: LocalChatConfigEntry
 ) -> None:
     """Handle update."""
     await hass.config_entries.async_reload(entry.entry_id)
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: LocalAiConfigEntry) -> bool:
-    """Unload Local OpenAI LLM."""
+async def async_unload_entry(hass: HomeAssistant, entry: LocalChatConfigEntry) -> bool:
+    """Unload Local Chat."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 

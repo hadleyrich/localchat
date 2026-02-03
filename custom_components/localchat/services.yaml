@@ -3,7 +3,7 @@ add_to_weaviate:
   description: Add or update object data in the Weaviate database connected to a Local AI Agent.
   target:
     entity:
-      integration: local_openai
+      integration: localchat
       domain: conversation
   fields:
     query:

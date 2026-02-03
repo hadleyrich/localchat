@@ -1,4 +1,4 @@
-# Local OpenAI LLM <small>_(Custom Integration for Home Assistant)_</small>
+# Local Chat <small>_(Custom Integration for Home Assistant)_</small>
 
 **Allows use of generic OpenAI-compatible LLM services, such as (but not limited to):**
 
@@ -41,12 +41,12 @@ Adding Tools for Assist to HACS can be using this button:
 > [!NOTE]
 > If the button above doesn't work, add `https://github.com/skye-harris/hass_local_openai_llm` as a custom repository of type Integration in HACS.
 
-* Click install on the `Local OpenAI LLM` integration.
+* Click install on the `Local Chat` integration.
 * Restart Home Assistant.
 
 <details><summary>Manual Install</summary>
 
-* Copy the `local_openai`  folder from [latest release](https://github.com/skye-harris/hass_local_openai_llm/releases/latest) to the [
+* Copy the `localchat`  folder from [latest release](https://github.com/skye-harris/hass_local_openai_llm/releases/latest) to the [
   `custom_components` folder](https://developers.home-assistant.io/docs/creating_integration_file_structure/#where-home-assistant-looks-for-integrations) in your config directory.
 * Restart the Home Assistant.
 
@@ -58,7 +58,7 @@ After installation, configure the integration through Home Assistant's UI:
 
 1. Go to `Settings` → `Devices & Services`.
 2. Click `Add Integration`.
-3. Search for `Local OpenAI LLM`.
+3. Search for `Local Chat`.
 4. Follow the setup wizard to configure your desired services.
 
 ### Configuration Notes
@@ -169,7 +169,7 @@ _This is not a general-purpose Weaviate management tool, rather it is purpose-bu
     - Gemma 3 27B on Scaleway.
     - Llama 3.1 8B on Scaleway.
     - GPT-OSS-120B on Scaleway.
-- A service action, `local_openai.add_to_weaviate`, can be used from within Home Assistant to add content to the database.
+- A service action, `localchat.add_to_weaviate`, can be used from within Home Assistant to add content to the database.
 
 ## Web Search & Additional Tools
 
