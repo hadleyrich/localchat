@@ -256,7 +256,7 @@ Extract and format as a list of facts/preferences:"""
                 LOGGER.warning("No AI Task entity found for summarization")
                 return None
             ai_task_entity_id = states[0].entity_id
-            LOGGER.debug(f"Using AI Task entity: {ai_task_entity_id}")
+            LOGGER.debug("Using AI Task entity: %s", ai_task_entity_id)
 
         # Call the AI Task service to generate summary
         result = await hass.services.async_call(

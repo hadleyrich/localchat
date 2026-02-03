@@ -23,8 +23,6 @@ from .hindsight import HindsightClient, process_conversation_memory
 if TYPE_CHECKING:
     from homeassistant.core import Event, HomeAssistant
     from homeassistant.helpers.typing import ConfigType
-    from homeassistant.core import Event, HomeAssistant
-    from homeassistant.helpers.typing import ConfigType
 
 PLATFORMS = [Platform.AI_TASK, Platform.CONVERSATION]
 
