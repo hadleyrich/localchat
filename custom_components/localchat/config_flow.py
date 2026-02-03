@@ -85,7 +85,7 @@ class LocalChatConfigFlow(ConfigFlow, domain=DOMAIN):
                 vol.Optional(
                     CONF_HINDSIGHT_SUMMARIZATION_PROMPT,
                     default=DEFAULT_HINDSIGHT_SUMMARIZATION_PROMPT,
-                ): str,
+                ): TemplateSelector(),
             }
         )
 
