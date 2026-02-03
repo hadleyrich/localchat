@@ -19,7 +19,7 @@ from .const import (
     EVENT_CONVERSATION_FINISHED,
     LOGGER,
 )
-from .hindsight import process_conversation_memory
+from .hindsight import ensure_mental_models, process_conversation_memory
 
 if TYPE_CHECKING:
     from homeassistant.core import Event, HomeAssistant
@@ -83,6 +83,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalChatConfigEntry) ->
                     user_memories_bank_id,
                     agent_traits_bank_id,
                 )
+
+                # Ensure mental models exist in both banks
+                # Mental models are now stored in the same banks as the observations they summarize
+                if user_memories_bank_id:
+                    try:
+                        await ensure_mental_models(
+                            hindsight_base_url,
+                            user_memories_bank_id,
+                        )
+                    except Exception:
+                        LOGGER.exception(
+                            "Error ensuring mental models for bank: %s",
+                            user_memories_bank_id,
+                        )
+
+                if agent_traits_bank_id:
+                    try:
+                        await ensure_mental_models(
+                            hindsight_base_url,
+                            agent_traits_bank_id,
+                        )
+                    except Exception:
+                        LOGGER.exception(
+                            "Error ensuring mental models for bank: %s",
+                            agent_traits_bank_id,
+                        )
 
                 # Process user memories
                 if user_memories_bank_id:

@@ -7,7 +7,12 @@ from typing import TYPE_CHECKING, Any
 
 from hindsight_client import Hindsight
 
-from .const import DEFAULT_HINDSIGHT_USER_MEMORIES_PROMPT, LOGGER
+from .const import (
+    DEFAULT_HINDSIGHT_USER_MEMORIES_PROMPT,
+    DEFAULT_TRAITS_MENTAL_MODELS,
+    DEFAULT_USERPREFS_MENTAL_MODELS,
+    LOGGER,
+)
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -171,3 +176,193 @@ async def process_conversation_memory(
 
     except Exception:
         LOGGER.exception("Error processing conversation memory")
+
+
+async def ensure_mental_models(
+    hindsight_base_url: str,
+    bank_id: str,
+    mental_models: list[dict] | None = None,
+) -> None:
+    """
+    Ensure mental models exist in the Hindsight bank.
+
+    Creates mental models if they don't exist, with auto-refresh enabled.
+
+    Args:
+        hindsight_base_url: Base URL for Hindsight server
+        bank_id: Memory bank identifier
+        mental_models: List of mental model definitions with 'name', 'source_query', and optional 'tags'
+                      If None, determines appropriate models based on bank_id suffix
+
+    """
+    try:
+        # Determine which mental models to use based on bank_id
+        if mental_models is None:
+            if bank_id.endswith("-traits"):
+                mental_models = DEFAULT_TRAITS_MENTAL_MODELS
+            elif bank_id.endswith("-userprefs"):
+                mental_models = DEFAULT_USERPREFS_MENTAL_MODELS
+            else:
+                LOGGER.warning(
+                    "Cannot determine mental models for bank %s - expected bank_id to end with '-traits' or '-userprefs'",
+                    bank_id,
+                )
+                return
+
+        client = Hindsight(base_url=hindsight_base_url, timeout=30.0)
+
+        try:
+            # Get existing mental models (bank may not exist yet, which is fine)
+            try:
+                existing = client.list_mental_models(bank_id=bank_id)
+                existing_names = {m.name for m in existing.items}
+            except Exception as list_err:
+                LOGGER.debug(
+                    "Bank %s may not exist yet, will create models: %s",
+                    bank_id,
+                    list_err,
+                )
+                existing_names = set()
+
+            # Create missing mental models
+            for model_def in mental_models:
+                if model_def["name"] not in existing_names:
+                    LOGGER.info(
+                        "Creating mental model '%s' in bank %s",
+                        model_def["name"],
+                        bank_id,
+                    )
+                    result = client.create_mental_model(
+                        bank_id=bank_id,
+                        name=model_def["name"],
+                        source_query=model_def["source_query"],
+                        tags=model_def.get("tags", []),
+                        trigger={"refresh_after_consolidation": True},
+                    )
+                    LOGGER.debug(
+                        "Mental model creation operation ID: %s", result.operation_id
+                    )
+                else:
+                    LOGGER.debug(
+                        "Mental model '%s' already exists in bank %s",
+                        model_def["name"],
+                        bank_id,
+                    )
+        finally:
+            client.close()
+
+    except Exception:
+        LOGGER.exception("Error ensuring mental models")
+
+
+async def retrieve_mental_models(
+    hindsight_base_url: str,
+    bank_id: str,
+) -> str:
+    """
+    Retrieve all mental model content from Hindsight bank.
+
+    Args:
+        hindsight_base_url: Base URL for Hindsight server
+        bank_id: Memory bank identifier
+
+    Returns:
+        Combined text of all mental model content, or empty string if none found
+
+    """
+    try:
+        client = Hindsight(base_url=hindsight_base_url, timeout=30.0)
+
+        try:
+            # List all mental models (bank may not exist yet)
+            try:
+                mental_models = client.list_mental_models(bank_id=bank_id)
+            except Exception as list_err:
+                LOGGER.debug(
+                    "Could not list mental models from bank %s (may not exist yet): %s",
+                    bank_id,
+                    list_err,
+                )
+                return ""
+
+            if not mental_models.items:
+                LOGGER.debug("No mental models found in bank %s", bank_id)
+                return ""
+
+            # Retrieve content from each mental model
+            contents = []
+            for mental_model in mental_models.items:
+                try:
+                    # Get full mental model details including content
+                    full_model = client.get_mental_model(
+                        bank_id=bank_id,
+                        mental_model_id=mental_model.id,
+                    )
+                    # Mental models may not have content yet if still generating
+                    if full_model.content:
+                        contents.append(f"## {full_model.name}\n{full_model.content}")
+                        LOGGER.debug(
+                            "Retrieved mental model '%s' content (%d chars)",
+                            full_model.name,
+                            len(full_model.content),
+                        )
+                    else:
+                        LOGGER.debug(
+                            "Mental model '%s' has no content yet (still generating)",
+                            full_model.name,
+                        )
+                except Exception as get_err:
+                    LOGGER.warning(
+                        "Could not retrieve mental model %s: %s",
+                        mental_model.id,
+                        get_err,
+                    )
+
+            combined = "\n\n".join(contents)
+            if combined:
+                LOGGER.debug(
+                    "Retrieved %d mental models from bank %s (%d total chars)",
+                    len(contents),
+                    bank_id,
+                    len(combined),
+                )
+            return combined
+
+        finally:
+            client.close()
+
+    except Exception:
+        LOGGER.exception("Error retrieving mental models")
+        return ""
+
+
+async def retrieve_mental_models_from_multiple_banks(
+    hindsight_base_url: str,
+    bank_ids: list[str],
+) -> str:
+    """
+    Retrieve all mental model content from multiple Hindsight banks.
+
+    Args:
+        hindsight_base_url: Base URL for Hindsight server
+        bank_ids: List of memory bank identifiers
+
+    Returns:
+        Combined text of all mental model content from all banks, or empty string if none found
+
+    """
+    all_contents = []
+
+    for bank_id in bank_ids:
+        content = await retrieve_mental_models(hindsight_base_url, bank_id)
+        if content:
+            all_contents.append(content)
+
+    combined = "\n\n".join(all_contents)
+    if combined:
+        LOGGER.debug(
+            "Retrieved mental models from %d banks (%d total chars)",
+            len(all_contents),
+            len(combined),
+        )
+    return combined

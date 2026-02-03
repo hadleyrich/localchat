@@ -66,6 +66,31 @@ Extract and format as a numbered list of personality traits/behaviors (one per l
 # Event for conversation completion with Hindsight integration
 EVENT_CONVERSATION_FINISHED = f"{DOMAIN}_conversation_finished"
 
+# Default mental model configurations for agent traits bank
+# These define agent personality and behavior patterns
+DEFAULT_TRAITS_MENTAL_MODELS = [
+    {
+        "name": "Assistant Personality",  # Human-readable name
+        "source_query": "How should a Home Assistant voice assistant speak, behave, and present itself?",  # Query used to generate content
+        "tags": ["personality", "behavior", "tone"],  # Tags for filtering/organization
+    },
+    {
+        "name": "Humor Guidelines",
+        "source_query": "How and when should humor be used by this assistant?",
+        "tags": ["humor", "personality"],
+    },
+]
+
+# Default mental model configurations for user preferences bank
+# These remember user preferences and communication style
+DEFAULT_USERPREFS_MENTAL_MODELS = [
+    {
+        "name": "User Preferences",
+        "source_query": "What are the user's preferences and communication style?",
+        "tags": ["preferences", "user"],
+    },
+]
+
 RECOMMENDED_CONVERSATION_OPTIONS = {
     CONF_RECOMMENDED: True,
     CONF_LLM_HASS_API: [llm.LLM_API_ASSIST],
