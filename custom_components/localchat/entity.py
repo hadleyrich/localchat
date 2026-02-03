@@ -1,4 +1,4 @@
-"""Base entity for Open Router."""
+"""Base entity for Local Chat."""
 
 from __future__ import annotations
 
@@ -153,7 +153,7 @@ async def _convert_content_to_chat_message(
 
         def log_and_str(value) -> str:
             LOGGER.warning(
-                f"Attempting string convertion of non-JSON-serialisable response content from LLM tool '{content.tool_name}': {value}"
+                f"Attempting string conversion of non-JSON-serialisable response content from LLM tool '{content.tool_name}': {value}"
             )
             return str(value)
 
