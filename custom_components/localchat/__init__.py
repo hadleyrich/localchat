@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-import voluptuous as vol
-from homeassistant.components.conversation import DOMAIN as CONVERSATION_DOMAIN
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
-from homeassistant.helpers import service
 from homeassistant.helpers.httpx_client import get_async_client
 from homeassistant.helpers.typing import ConfigType
 from openai import AsyncOpenAI, AuthenticationError, OpenAIError
@@ -63,25 +60,4 @@ async def async_unload_entry(hass: HomeAssistant, entry: LocalChatConfigEntry) -
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up is called when Home Assistant is loading our component."""
-    service.async_register_platform_entity_service(
-        hass=hass,
-        service_domain=DOMAIN,
-        service_name="add_to_weaviate",
-        entity_domain=CONVERSATION_DOMAIN,
-        schema={
-            vol.Required("query"): str,
-            vol.Required("content"): str,
-            vol.Optional("identifier"): str,
-        },
-        func=upsert_data_in_weaviate,
-    )
     return True
-
-
-async def upsert_data_in_weaviate(entity, service_call):
-    """Service action to add content to Weaviate."""
-    await entity.upsert_data_in_weaviate(
-        query=service_call.data.get("query"),
-        content=service_call.data.get("content"),
-        identifier=service_call.data.get("identifier"),
-    )
