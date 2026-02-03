@@ -14,7 +14,7 @@ from homeassistant.config_entries import (
     SubentryFlowResult,
 )
 from homeassistant.const import CONF_API_KEY, CONF_LLM_HASS_API, CONF_MODEL, CONF_PROMPT
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import callback
 from homeassistant.data_entry_flow import SectionConfig, section
 from homeassistant.helpers import llm
 from homeassistant.helpers.httpx_client import get_async_client
@@ -290,7 +290,7 @@ class ConversationFlowHandler(LocalChatSubentryFlowHandler):
             if not user_input.get(CONF_LLM_HASS_API):
                 user_input.pop(CONF_LLM_HASS_API, None)
             model_name = self.strip_model_pathing(user_input.get(CONF_MODEL, "Local"))
-            
+
             return self.async_create_entry(
                 title=f"{model_name} AI Agent", data=user_input
             )
