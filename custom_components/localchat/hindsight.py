@@ -142,7 +142,7 @@ async def process_conversation_memory(
                     "content": fact,
                     "metadata": {
                         "conversation_id": conversation_id,
-                        "message_count": len(conversation_history),
+                        "message_count": str(len(conversation_history)),
                         "source": "localchat_conversation",
                     },
                 }
