@@ -40,7 +40,6 @@ from .const import (
     CONF_HINDSIGHT_AGENT_TRAITS_PROMPT,
     CONF_HINDSIGHT_BASE_URL,
     CONF_HINDSIGHT_ENABLED,
-    CONF_HINDSIGHT_MENTAL_MODELS_ENABLED,
     CONF_HINDSIGHT_USER_MEMORIES_PROMPT,
     CONF_MAX_MESSAGE_HISTORY,
     CONF_PARALLEL_TOOL_CALLS,
@@ -83,7 +82,6 @@ class LocalChatConfigFlow(ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_API_KEY, default=""): str,
                 vol.Optional(CONF_HINDSIGHT_ENABLED, default=False): bool,
                 vol.Optional(CONF_HINDSIGHT_BASE_URL, default=""): str,
-                vol.Optional(CONF_HINDSIGHT_MENTAL_MODELS_ENABLED, default=True): bool,
                 vol.Optional(
                     CONF_HINDSIGHT_USER_MEMORIES_PROMPT,
                     default=DEFAULT_HINDSIGHT_USER_MEMORIES_PROMPT,

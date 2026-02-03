@@ -35,7 +35,6 @@ CONF_HINDSIGHT_ENABLED = "hindsight_enabled"
 CONF_HINDSIGHT_BASE_URL = "hindsight_base_url"
 CONF_HINDSIGHT_USER_MEMORIES_PROMPT = "hindsight_user_memories_prompt"
 CONF_HINDSIGHT_AGENT_TRAITS_PROMPT = "hindsight_agent_traits_prompt"
-CONF_HINDSIGHT_MENTAL_MODELS_ENABLED = "hindsight_mental_models_enabled"
 
 # Default summarization prompt for user memories/preferences
 DEFAULT_HINDSIGHT_USER_MEMORIES_PROMPT = """Analyze the following conversation and extract:
@@ -67,10 +66,9 @@ Extract and format as a numbered list of personality traits/behaviors (one per l
 # Event for conversation completion with Hindsight integration
 EVENT_CONVERSATION_FINISHED = f"{DOMAIN}_conversation_finished"
 
-# Default mental model configurations
-# These are automatically created when mental models are enabled
-# Each mental model is a pre-computed summary that defines agent behavior or preferences
-DEFAULT_MENTAL_MODELS = [
+# Default mental model configurations for agent traits bank
+# These define agent personality and behavior patterns
+DEFAULT_TRAITS_MENTAL_MODELS = [
     {
         "name": "Assistant Personality",  # Human-readable name
         "source_query": "How should a Home Assistant voice assistant speak, behave, and present itself?",  # Query used to generate content
@@ -81,6 +79,11 @@ DEFAULT_MENTAL_MODELS = [
         "source_query": "How and when should humor be used by this assistant?",
         "tags": ["humor", "personality"],
     },
+]
+
+# Default mental model configurations for user preferences bank
+# These remember user preferences and communication style
+DEFAULT_USERPREFS_MENTAL_MODELS = [
     {
         "name": "User Preferences",
         "source_query": "What are the user's preferences and communication style?",

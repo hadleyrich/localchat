@@ -9,15 +9,13 @@
           "api_key": "API key",
           "hindsight_enabled": "Enable Hindsight Memory",
           "hindsight_base_url": "Hindsight Server URL",
-          "hindsight_mental_models_enabled": "Enable Mental Models",
           "hindsight_bank_id": "Hindsight Memory Bank ID",
           "hindsight_summarization_prompt": "Hindsight Summarization Prompt"
         },
         "data_description": {
           "api_key": "If required to authenticate with the service",
-          "hindsight_enabled": "Enable long-term memory storage using Hindsight",
+          "hindsight_enabled": "Enable long-term memory storage using Hindsight (includes Mental Models)",
           "hindsight_base_url": "URL of your Hindsight server (e.g., http://localhost:8888)",
-          "hindsight_mental_models_enabled": "Enable Mental Models for agent personality and user preferences (requires Hindsight)",
           "hindsight_bank_id": "Memory bank identifier for storing conversation memories",
           "hindsight_summarization_prompt": "Prompt template for extracting facts from conversations. Use '{'{conversation_text}'}' placeholder."
         }
@@ -30,15 +28,13 @@
           "api_key": "API key",
           "hindsight_enabled": "Enable Hindsight Memory",
           "hindsight_base_url": "Hindsight Server URL",
-          "hindsight_mental_models_enabled": "Enable Mental Models",
           "hindsight_bank_id": "Hindsight Memory Bank ID",
           "hindsight_summarization_prompt": "Hindsight Summarization Prompt"
         },
         "data_description": {
           "api_key": "If required to authenticate with the service",
-          "hindsight_enabled": "Enable long-term memory storage using Hindsight",
+          "hindsight_enabled": "Enable long-term memory storage using Hindsight (includes Mental Models)",
           "hindsight_base_url": "URL of your Hindsight server (e.g., http://localhost:8888)",
-          "hindsight_mental_models_enabled": "Enable Mental Models for agent personality and user preferences (requires Hindsight)",
           "hindsight_bank_id": "Memory bank identifier for storing conversation memories",
           "hindsight_summarization_prompt": "Prompt template for extracting facts from conversations. Use '{'{conversation_text}'}' placeholder."
         }

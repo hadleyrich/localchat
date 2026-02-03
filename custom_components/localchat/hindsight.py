@@ -7,7 +7,12 @@ from typing import TYPE_CHECKING, Any
 
 from hindsight_client import Hindsight
 
-from .const import DEFAULT_HINDSIGHT_USER_MEMORIES_PROMPT, DEFAULT_MENTAL_MODELS, LOGGER
+from .const import (
+    DEFAULT_HINDSIGHT_USER_MEMORIES_PROMPT,
+    DEFAULT_TRAITS_MENTAL_MODELS,
+    DEFAULT_USERPREFS_MENTAL_MODELS,
+    LOGGER,
+)
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -187,11 +192,23 @@ async def ensure_mental_models(
         hindsight_base_url: Base URL for Hindsight server
         bank_id: Memory bank identifier
         mental_models: List of mental model definitions with 'name', 'source_query', and optional 'tags'
-                      If None, uses DEFAULT_MENTAL_MODELS
+                      If None, determines appropriate models based on bank_id suffix
 
     """
     try:
-        models = mental_models or DEFAULT_MENTAL_MODELS
+        # Determine which mental models to use based on bank_id
+        if mental_models is None:
+            if bank_id.endswith("-traits"):
+                mental_models = DEFAULT_TRAITS_MENTAL_MODELS
+            elif bank_id.endswith("-userprefs"):
+                mental_models = DEFAULT_USERPREFS_MENTAL_MODELS
+            else:
+                LOGGER.warning(
+                    "Cannot determine mental models for bank %s - expected bank_id to end with '-traits' or '-userprefs'",
+                    bank_id,
+                )
+                return
+
         client = Hindsight(base_url=hindsight_base_url, timeout=30.0)
 
         try:
@@ -208,7 +225,7 @@ async def ensure_mental_models(
                 existing_names = set()
 
             # Create missing mental models
-            for model_def in models:
+            for model_def in mental_models:
                 if model_def["name"] not in existing_names:
                     LOGGER.info(
                         "Creating mental model '%s' in bank %s",
@@ -317,3 +334,35 @@ async def retrieve_mental_models(
     except Exception:
         LOGGER.exception("Error retrieving mental models")
         return ""
+
+
+async def retrieve_mental_models_from_multiple_banks(
+    hindsight_base_url: str,
+    bank_ids: list[str],
+) -> str:
+    """
+    Retrieve all mental model content from multiple Hindsight banks.
+
+    Args:
+        hindsight_base_url: Base URL for Hindsight server
+        bank_ids: List of memory bank identifiers
+
+    Returns:
+        Combined text of all mental model content from all banks, or empty string if none found
+
+    """
+    all_contents = []
+    
+    for bank_id in bank_ids:
+        content = await retrieve_mental_models(hindsight_base_url, bank_id)
+        if content:
+            all_contents.append(content)
+    
+    combined = "\n\n".join(all_contents)
+    if combined:
+        LOGGER.debug(
+            "Retrieved mental models from %d banks (%d total chars)",
+            len(all_contents),
+            len(combined),
+        )
+    return combined

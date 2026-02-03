@@ -6,25 +6,27 @@ This integration has been forked from https://github.com/skye-harris/hass_local_
 
 This integration supports **Hindsight**, a long-term memory system designed specifically for AI agents. When enabled, conversation histories are automatically summarized and stored in a Hindsight memory bank for future reference.
 
-### Mental Models (NEW)
+### Mental Models
 
-Mental Models are pre-computed, user-curated summaries that define your agent's personality and remember user preferences. They are checked first during every conversation, providing fast, consistent answers.
+Mental Models are pre-computed, automatically-refreshing summaries that define your agent's personality and remember user preferences. They are stored directly in your memory banks alongside observations for maximum context.
 
 **Default Mental Models:**
-- **Assistant Personality**: How your assistant should speak, behave, and present itself
-- **Humor Guidelines**: When and how humor should be used
-- **User Preferences**: Communication style and user preferences
+- **Assistant Personality**: How your assistant should speak, behave, and present itself (stored in traits bank)
+- **Humor Guidelines**: When and how humor should be used (stored in traits bank)
+- **User Preferences**: Communication style and user preferences (stored in userprefs bank)
 
 **How They Work:**
-1. Mental models are automatically created when Hindsight is enabled
-2. They are stored in a separate `{entity_name}-mental-models` bank
-3. Content is retrieved and injected into the system prompt before each conversation
-4. They automatically refresh after observation consolidation to stay current
+1. Mental models are automatically created when Hindsight is enabled (always on)
+2. Personality models are stored in the `{entity_name}-traits` bank with agent observations
+3. User preference models are stored in the `{entity_name}-userprefs` bank with user memories
+4. Content is retrieved and injected into the system prompt before each conversation
+5. They automatically refresh after observation consolidation to stay current
 
 **Benefits:**
 - Consistent personality across all conversations
 - Fast retrieval (pre-computed responses)
 - Automatic learning from interactions
+- Mental models have full context from their memory banks
 - High-quality, curated responses for common topics
 
 #### Setup:
@@ -32,8 +34,7 @@ Mental Models are pre-computed, user-curated summaries that define your agent's 
 1. Install and run Hindsight server (see [Hindsight documentation](https://hindsight.vectorize.io/))
 2. During Local Chat configuration, enable "Hindsight Memory"
 3. Provide your Hindsight server URL (e.g., `http://localhost:8888`)
-4. Enable "Mental Models" (enabled by default)
-5. Optionally customize prompts for memory extraction
+4. Optionally customize prompts for memory extraction
 
 #### How it Works:
 
@@ -45,8 +46,7 @@ Mental Models are pre-computed, user-curated summaries that define your agent's 
 - Extracted memories are stored in your Hindsight memory banks:
   - `{entity_name}-userprefs`: User memories and preferences
   - `{entity_name}-traits`: Agent personality traits
-  - `{entity_name}-mental-models`: Mental models for personality and preferences
-- Mental models are automatically created on first conversation and refresh after consolidation
+- Mental models are automatically created in these banks on first conversation and refresh after consolidation
 - This happens asynchronously, so it doesn't slow down conversations
 
 #### Benefits:

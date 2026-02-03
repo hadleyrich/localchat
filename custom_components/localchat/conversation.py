@@ -13,12 +13,11 @@ from . import LocalChatConfigEntry
 from .const import (
     CONF_HINDSIGHT_BASE_URL,
     CONF_HINDSIGHT_ENABLED,
-    CONF_HINDSIGHT_MENTAL_MODELS_ENABLED,
     DOMAIN,
     EVENT_CONVERSATION_FINISHED,
 )
 from .entity import LocalChatEntity
-from .hindsight import retrieve_mental_models
+from .hindsight import retrieve_mental_models_from_multiple_banks
 
 
 async def async_setup_entry(
@@ -64,22 +63,22 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
         options = self.subentry.data
         system_prompt = options.get(CONF_PROMPT)
 
-        # Retrieve and inject mental models if enabled
+        # Retrieve and inject mental models if Hindsight is enabled
         parent_options = self.entry.data
         hindsight_enabled = parent_options.get(CONF_HINDSIGHT_ENABLED, False)
-        mental_models_enabled = parent_options.get(CONF_HINDSIGHT_MENTAL_MODELS_ENABLED, True)
 
-        if hindsight_enabled and mental_models_enabled:
+        if hindsight_enabled:
             hindsight_base_url = parent_options.get(CONF_HINDSIGHT_BASE_URL)
             if hindsight_base_url:
-                # Generate mental models bank ID from entity name
+                # Generate bank IDs from entity name
                 entity_name = self.entity_id.split(".")[-1] if "." in self.entity_id else self.entity_id
-                mental_models_bank_id = f"{entity_name}-mental-models"
+                traits_bank_id = f"{entity_name}-traits"
+                userprefs_bank_id = f"{entity_name}-userprefs"
 
-                # Retrieve mental model content
-                mental_model_content = await retrieve_mental_models(
+                # Retrieve mental model content from both banks
+                mental_model_content = await retrieve_mental_models_from_multiple_banks(
                     hindsight_base_url,
-                    mental_models_bank_id,
+                    [traits_bank_id, userprefs_bank_id],
                 )
 
                 # Inject mental models into system prompt if content exists
@@ -122,7 +121,6 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
             entity_name = self.entity_id.split(".")[-1] if "." in self.entity_id else self.entity_id
             user_memories_bank_id = f"{entity_name}-userprefs"
             agent_traits_bank_id = f"{entity_name}-traits"
-            mental_models_bank_id = f"{entity_name}-mental-models"
 
             # Fire event asynchronously (non-blocking)
             self.hass.bus.async_fire(
@@ -134,7 +132,6 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
                     "hindsight_base_url": parent_options.get(CONF_HINDSIGHT_BASE_URL),
                     "user_memories_bank_id": user_memories_bank_id,
                     "agent_traits_bank_id": agent_traits_bank_id,
-                    "mental_models_bank_id": mental_models_bank_id,
                     "conversation_history": conversation_history,
                 },
             )
