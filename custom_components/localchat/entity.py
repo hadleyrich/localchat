@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
-import uuid
 from collections.abc import AsyncGenerator, Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal
@@ -50,21 +49,9 @@ from .const import (
     CONF_PARALLEL_TOOL_CALLS,
     CONF_STRIP_EMOJIS,
     CONF_TEMPERATURE,
-    CONF_WEAVIATE_API_KEY,
-    CONF_WEAVIATE_CLASS_NAME,
-    CONF_WEAVIATE_DEFAULT_CLASS_NAME,
-    CONF_WEAVIATE_DEFAULT_HYBRID_SEARCH_ALPHA,
-    CONF_WEAVIATE_DEFAULT_MAX_RESULTS,
-    CONF_WEAVIATE_DEFAULT_THRESHOLD,
-    CONF_WEAVIATE_HOST,
-    CONF_WEAVIATE_HYBRID_SEARCH_ALPHA,
-    CONF_WEAVIATE_MAX_RESULTS,
-    CONF_WEAVIATE_OPTIONS,
-    CONF_WEAVIATE_THRESHOLD,
     DOMAIN,
     LOGGER,
 )
-from .weaviate import WeaviateClient
 
 # Max number of back and forth with the LLM to generate a response
 MAX_TOOL_ITERATIONS = 10
@@ -219,10 +206,6 @@ async def _convert_content_to_chat_message(
         return param
     LOGGER.warning("Could not convert message to Completions API: %s", content)
     return None
-
-
-def _make_uuid(identifier: str) -> str:
-    return str(uuid.uuid5(namespace=uuid.NAMESPACE_OID, name=identifier))
 
 
 async def _transform_stream(
@@ -423,56 +406,6 @@ class LocalChatEntity(Entity):
             f"The current date and time is: `{date_str}` at `{time_str}`.",
         ]
 
-        # Retrieval Augmented Generation: Query Weaviate vector DB
-        weaviate_opts = options.get(CONF_WEAVIATE_OPTIONS, {})
-        weaviate_server_opts = self.entry.data.get(CONF_WEAVIATE_OPTIONS, {})
-        weaviate_host = weaviate_server_opts.get(CONF_WEAVIATE_HOST)
-        weaviate_class = weaviate_opts.get(
-            CONF_WEAVIATE_CLASS_NAME, CONF_WEAVIATE_DEFAULT_CLASS_NAME
-        )
-
-        if weaviate_host and user_input and user_input.text:
-            try:
-                client = WeaviateClient(
-                    hass=self.hass,
-                    host=weaviate_host,
-                    api_key=weaviate_server_opts.get(CONF_WEAVIATE_API_KEY),
-                )
-
-                results = await client.hybrid_search(
-                    class_name=weaviate_class,
-                    query=user_input.text,
-                    alpha=weaviate_opts.get(
-                        CONF_WEAVIATE_HYBRID_SEARCH_ALPHA,
-                        CONF_WEAVIATE_DEFAULT_HYBRID_SEARCH_ALPHA,
-                    ),
-                    threshold=weaviate_opts.get(
-                        CONF_WEAVIATE_THRESHOLD, CONF_WEAVIATE_DEFAULT_THRESHOLD
-                    ),
-                    limit=int(
-                        weaviate_opts.get(
-                            CONF_WEAVIATE_MAX_RESULTS, CONF_WEAVIATE_DEFAULT_MAX_RESULTS
-                        )
-                    ),
-                )
-
-                LOGGER.debug(f"Weaviate results: {results}")
-
-                result_content = [
-                    f"Query: {result.get('query').strip()}\nContent: {result.get('content').strip()}"
-                    for result in results
-                ]
-                if result_content:
-                    # inject_content.append(
-                    #     f"# Retrieval Augmented Generation\nYou may use the following information to answer the user question, if appropriate.\nIgnore this if it does not relate to or answer the users query.\n\n{'\n'.join(result_content)}"
-                    # )
-                    inject_content += result_content
-            except Exception as err:
-                LOGGER.warning(
-                    "An unexpected exception occurred while processing RAG: %s", err
-                )
-                LOGGER.exception(err)
-
         # Inject any pending content into the current user message
         # We prepend to the last message to avoid creating consecutive user messages
         # which would violate chat template role alternation requirements
@@ -591,53 +524,3 @@ class LocalChatEntity(Entity):
                 del messages[1]
 
         return messages
-
-    async def upsert_data_in_weaviate(
-        self, query: str, content: str, identifier: str | None
-    ):
-        """Add or update a record in Weaviate"""
-        options = self.subentry.data
-        weaviate_opts = options.get(CONF_WEAVIATE_OPTIONS, {})
-        weaviate_server_opts = self.entry.data.get(CONF_WEAVIATE_OPTIONS, {})
-        weaviate_host = weaviate_server_opts.get(CONF_WEAVIATE_HOST)
-        weaviate_class = weaviate_opts.get(
-            CONF_WEAVIATE_CLASS_NAME, CONF_WEAVIATE_DEFAULT_CLASS_NAME
-        )
-
-        if not weaviate_host:
-            raise RuntimeError("Weaviate is not configured for this Agent")
-
-        client = WeaviateClient(
-            hass=self.hass,
-            host=weaviate_host,
-            api_key=weaviate_server_opts.get(CONF_WEAVIATE_API_KEY),
-        )
-
-        # If we have been provided an identifier, generate a UUID and check if it exists
-        object_uuid = _make_uuid(identifier) if identifier else None
-        if object_uuid:
-            object_exists = await client.does_object_exist(
-                class_name=weaviate_class, object_uuid=object_uuid
-            )
-
-            if object_exists:
-                # Object exists, perform replace the existing object with the new one
-                await client.replace_object(
-                    class_name=weaviate_class,
-                    query=query,
-                    content=content,
-                    object_uuid=object_uuid,
-                )
-
-                LOGGER.info(f"Object updated in Weaviate: {object_uuid}")
-                return
-
-        # Object does not exist, create new object
-        await client.add_object(
-            class_name=weaviate_class,
-            query=query,
-            content=content,
-            object_uuid=object_uuid,
-        )
-
-        LOGGER.info(f"Object added to Weaviate class: {weaviate_class}")

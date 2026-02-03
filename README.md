@@ -112,65 +112,6 @@ Some models have been known to repeat the date/time back to the user without req
 If your model simply refuses to work well with any method, simply remove the value from the configuration option to disable this again.
 
 
-## Experimental: Retrieval Augmented Generation (RAG) with Weaviate
-
-Retrieval Augmented Generation is used to pre-feed your LLM messages with related data to provide contextually relevant information to the model based on the user input message.
-
-This integration supports connecting your Agent to a Weaviate vector database server.
-Once configured, user messages to the Agent will be queried against the Weaviate database first, and the result data pre-emptively injected into the current conversation as contextual data for the Agent to utilise in their response.
-
-This is not a general-purpose "memory" for the Agent: content is only provided to the Agent if it matches on the current user input message to the model.
-
-See the [Weaviate documentation](https://docs.weaviate.io/weaviate) for further information on Weaviate.
-
-### Weaviate Configuration
-
-1. **Install Weaviate [locally](https://docs.weaviate.io/weaviate/quickstart/local)**
-    1. A pre-made `docker-compose.yml` is provided in the `weaviate` directory of this repository.
-    2. _Weaviate Cloud is not supported: there is no free tier available and its cheapest pricing plan isn't attractive for personal/home use, and so I don't anticipate demand for this._
-2. **Reconfigure your LLM Server entity (**not** the Agent entity) in Home Assistant.**
-    1. Expand the `Weaviate configuration` section and fill in the details server address and API key (`homeassistant` if using the supplied `docker-compose.yml`).
-3. **Optional: Reconfigure your AI Agent entities in Home Assistant.**
-    1. This is only needed if you wish to change the default Weaviate values on a per-agent basis:
-        1. Object class name: Defaults to `Homeassistant`, can be changed if you want a different data store for the Agent. The integration will handle creating the required object class within Weaviate if it does not already exist.
-        2. Maximum number of results to use: Defaults to `2`.
-        3. Result score threshold: Defaults to `0.9`.
-        4. Hybrid search alpha: Defaults to `0.5`. Balances the hybrid result scoring between 0 (fully text-matched) and 1 (fully vectorised) matching.
-
-### Managing Data
-
-Self-hosted Weaviate does not come with a front-end to manage data at all at this current point in time.
-
-I have included a simple NodeJS-based WebApp server within the `/weaviate` directory of this repository, that can be used to connect to your local Weaviate instance and view, query, and manage the data in your object class.
-This is also setup into the supplied `docker-compose.yml` and exposed on port 9090 by default.
-
-This tool supports the following basic functionality:
-
-- Connect to your server and list the available object classes.
-- View the available entry data in each class.
-- Add new entry data to a class.
-- Perform vector and hybrid searches against an object class.
-
-_This is not a general-purpose Weaviate management tool, rather it is purpose-built specifically for use with this integration and the object classes that it creates._
-
-### Notes
-
-- Only the current generations user message is queried in the database, no prior user messages are included.
-- Search results are used for the **current** user/assistant turns only (including multiturn tool usages), and do not carry forward to subsequent user/assistant turns.
-- Objects are stored as 2 pieces of data: the `query`, and the `content`:
-    - The `query` is what is vectorised and the user inputs searched against.
-    - The `content` is the main content to be provided to be fed to the LLM, along with its `query` text for context.
-- Useful for providing contextual information to the LLM for different types of requests, without having all of it in your prompt at all times.
-- I have performed basic testing of this with a variety of models across a few inference providers:
-    - Qwen 3-VL 8B locally on llama.cpp.
-    - Minimax m2.1 on OpenRouter.
-    - Ministral 8B 2512 on OpenRouter.
-    - GPT-5 on OpenRouter.
-    - Gemma 3 27B on Scaleway.
-    - Llama 3.1 8B on Scaleway.
-    - GPT-OSS-120B on Scaleway.
-- A service action, `localchat.add_to_weaviate`, can be used from within Home Assistant to add content to the database.
-
 ## Web Search & Additional Tools
 
 Looking to add some more functionality to your Home Assistant conversation agent, such as web and localised business/location search? Check out my [Tools for Assist](https://github.com/skye-harris/llm_intents) integration here!
