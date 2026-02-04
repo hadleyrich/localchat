@@ -47,7 +47,7 @@ DEFAULT_MENTAL_MODELS = [
     },
     {
         "name": "User Information",
-        "source_query": "Summarize the user’s preferences, habits, interests, communication style, priorities, and relevant context in language suitable for directly instructing an AI. Include patterns in behaviour, recurring topics, preferred ways of interacting, and any constraints or dislikes. Write as guidance for an AI on how to adapt responses to align with the user’s personality, needs, and preferences.",
+        "source_query": "Summarize the users, habits, interests, priorities, and relevant context in language suitable for directly instructing an AI. Include patterns in behaviour, recurring topics, and any likes or dislikes. Write as guidance for an AI on how to adapt responses to align with the users personality and needs.",
         "tags": ["preferences", "user"],
     },
 ]
