@@ -196,9 +196,12 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
                 # Clean up old tracking entries to prevent unbounded memory growth
                 # Keep only the most recent 100 conversations
                 if len(self._sent_message_counts) > 100:
-                    # Remove the oldest entries (first items in dict)
-                    oldest_keys = list(self._sent_message_counts.keys())[:-100]
-                    for key in oldest_keys:
+                    # Keep the last 100 entries, remove the rest
+                    keys_to_keep = set(list(self._sent_message_counts.keys())[-100:])
+                    keys_to_remove = [
+                        key for key in self._sent_message_counts if key not in keys_to_keep
+                    ]
+                    for key in keys_to_remove:
                         del self._sent_message_counts[key]
 
         return result
