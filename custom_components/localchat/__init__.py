@@ -84,6 +84,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalChatConfigEntry) ->
                 if bank_id:
                     try:
                         await ensure_mental_models(
+                            hass,
                             hindsight_base_url,
                             bank_id,
                         )
