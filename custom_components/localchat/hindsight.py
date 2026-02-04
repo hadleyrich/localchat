@@ -26,6 +26,8 @@ async def process_conversation_memory(
     Process conversation and store in Hindsight.
 
     Passes the full conversation to Hindsight for it to extract facts itself.
+    The conversation is stored as a single memory item with the "conversation" tag
+    for easier retrieval and filtering.
 
     Args:
         hass: Home Assistant instance
