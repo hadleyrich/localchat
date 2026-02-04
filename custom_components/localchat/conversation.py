@@ -64,7 +64,6 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
         """Process the user input and call the API."""
         options = self.subentry.data
         system_prompt = options.get(CONF_PROMPT)
-
         LOGGER.debug(f"System prompt: {system_prompt}")
 
         # Retrieve and inject mental models if Hindsight is enabled
@@ -94,9 +93,7 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
                     mental_models_section = (
                         f"\n\n# Personality and Preferences\n\n{mental_model_content}"
                     )
-                    user_input.extra_system_prompt = (
-                        user_input.extra_system_prompt or ""
-                    ) + mental_models_section
+                    system_prompt = (system_prompt or "") + mental_models_section
                     LOGGER.debug(
                         f"Injected mental models into system prompt for entity {self.entity_id}."
                     )
@@ -104,15 +101,13 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
                 dt = datetime.now()
                 date_str = dt.strftime("%A %d %B, %Y")
 
-                user_input.extra_system_prompt = (
-                    (user_input.extra_system_prompt or "")
+                system_prompt = (
+                    (system_prompt or "")
                     + "\n\n"
                     + f"The current date is: `{date_str}`."
                 )
 
-                LOGGER.debug(
-                    f"User extra system prompt: {user_input.extra_system_prompt}"
-                )
+                LOGGER.debug(f"Update system prompt: {system_prompt}")
 
         hass_apis = [api.id for api in llm.async_get_apis(self.hass)]
 
