@@ -1,5 +1,6 @@
 """Conversation support for Local Chat."""
 
+from datetime import datetime
 from typing import Literal
 
 from homeassistant.components import conversation
@@ -99,6 +100,15 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
                     LOGGER.debug(
                         f"Injected mental models into system prompt for entity {self.entity_id}."
                     )
+
+                dt = datetime.now()
+                date_str = dt.strftime("%A %d %B, %Y")
+
+                user_input.extra_system_prompt = (
+                    (user_input.extra_system_prompt or "")
+                    + "\n\n"
+                    + f"The current date is: `{date_str}`."
+                )
 
                 LOGGER.debug(
                     f"User extra system prompt: {user_input.extra_system_prompt}"

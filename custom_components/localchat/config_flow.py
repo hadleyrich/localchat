@@ -26,7 +26,6 @@ from homeassistant.helpers.selector import (
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
-    SelectSelectorMode,
     TemplateSelector,
 )
 from openai import AsyncOpenAI, OpenAIError
@@ -35,8 +34,6 @@ from .const import (
     CONF_BASE_URL,
     CONF_CHAT_TEMPLATE_KWARGS,
     CONF_CHAT_TEMPLATE_OPTS,
-    CONF_CONTENT_INJECTION_METHOD,
-    CONF_CONTENT_INJECTION_METHODS,
     CONF_HINDSIGHT_BASE_URL,
     CONF_HINDSIGHT_ENABLED,
     CONF_MAX_MESSAGE_HISTORY,
@@ -248,14 +245,6 @@ class ConversationFlowHandler(LocalChatSubentryFlowHandler):
                     max=50,
                     step=1,
                     mode=NumberSelectorMode.BOX,
-                )
-            ),
-            vol.Optional(
-                CONF_CONTENT_INJECTION_METHOD,
-            ): SelectSelector(
-                SelectSelectorConfig(
-                    mode=SelectSelectorMode.DROPDOWN,
-                    options=CONF_CONTENT_INJECTION_METHODS,
                 )
             ),
             vol.Required(CONF_CHAT_TEMPLATE_OPTS): section(

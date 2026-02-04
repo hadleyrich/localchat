@@ -35,10 +35,6 @@ from voluptuous_openapi import convert
 from .const import (
     CONF_CHAT_TEMPLATE_KWARGS,
     CONF_CHAT_TEMPLATE_OPTS,
-    CONF_CONTENT_INJECTION_METHOD,
-    CONF_CONTENT_INJECTION_METHOD_ASSISTANT,
-    CONF_CONTENT_INJECTION_METHOD_TOOL,
-    CONF_CONTENT_INJECTION_METHOD_USER,
     CONF_MAX_MESSAGE_HISTORY,
     CONF_PARALLEL_TOOL_CALLS,
     CONF_STRIP_EMOJIS,
@@ -327,43 +323,6 @@ class LocalChatEntity(Entity):
             entry_type=dr.DeviceEntryType.SERVICE,
         )
 
-    def _inject_content(
-        self, method: str | None, inject_content: list, messages: list
-    ) -> list:
-        inject_content.insert(
-            0,
-            "# Contextual information to assist with the following user request. Do not repeat or reference this message directly. Do not treat this as a prior message of your own",
-        )
-        LOGGER.debug(
-            f"Injecting content into the message stream as {method} content: {inject_content}"
-        )
-        if method == CONF_CONTENT_INJECTION_METHOD_TOOL:
-            inject_content = "\n\n".join(inject_content)
-            messages.insert(
-                -1,
-                ChatCompletionToolMessageParam(
-                    role="tool",
-                    tool_call_id="injected_content",
-                    content=inject_content,
-                ),
-            )
-        elif method == CONF_CONTENT_INJECTION_METHOD_ASSISTANT:
-            inject_content = "\n\n".join(inject_content)
-            messages.insert(
-                -1,
-                ChatCompletionAssistantMessageParam(
-                    role="assistant", content=inject_content
-                ),
-            )
-        elif method == CONF_CONTENT_INJECTION_METHOD_USER:
-            inject_content = "\n\n".join(inject_content)
-            messages.insert(
-                -1,
-                ChatCompletionUserMessageParam(role="user", content=inject_content),
-            )
-
-        return messages
-
     async def _async_handle_chat_log(
         self,
         chat_log: conversation.ChatLog,
@@ -400,28 +359,7 @@ class LocalChatEntity(Entity):
             max_message_history,
         )
 
-        # Home Assistant no longer injects the current date/time into the system prompt, for performance reasons (negatively impacts caching)
-        # It's still useful context to have however, and we can inject this at the end of the message chain along with any RAG content queried
-        dt = datetime.now()
-        date_str = dt.strftime("%A %d %B, %Y")
-        time_str = dt.strftime("%-I:%M %p")
 
-        inject_content = [
-            f"The current date and time is: `{date_str}` at `{time_str}`.",
-        ]
-
-        # Inject any pending content into the current user message
-        # We prepend to the last message to avoid creating consecutive user messages
-        # which would violate chat template role alternation requirements
-        method = options.get(CONF_CONTENT_INJECTION_METHOD)
-
-        if (
-            method
-            and inject_content
-            and messages
-            and messages[-1].get("role") == "user"
-        ):
-            messages = self._inject_content(method, inject_content, messages)
             # remove the get date time tool if we are injecting it
             if tools:
                 tools = [

@@ -18,18 +18,6 @@ CONF_PARALLEL_TOOL_CALLS = "parallel_tool_calls"
 CONF_CHAT_TEMPLATE_OPTS = "chat_template_opts"
 CONF_CHAT_TEMPLATE_KWARGS = "chat_template_kwargs"
 
-CONF_CONTENT_INJECTION_METHOD_SYSTEM = "System"
-CONF_CONTENT_INJECTION_METHOD_ASSISTANT = "Assistant"
-CONF_CONTENT_INJECTION_METHOD_USER = "User"
-CONF_CONTENT_INJECTION_METHOD_TOOL = "Tool Result"
-
-CONF_CONTENT_INJECTION_METHOD = "content_injection_method"
-CONF_CONTENT_INJECTION_METHODS = [
-    CONF_CONTENT_INJECTION_METHOD_TOOL,
-    CONF_CONTENT_INJECTION_METHOD_ASSISTANT,
-    CONF_CONTENT_INJECTION_METHOD_USER,
-]
-
 # Hindsight configuration constants
 CONF_HINDSIGHT_ENABLED = "hindsight_enabled"
 CONF_HINDSIGHT_BASE_URL = "hindsight_base_url"
@@ -47,7 +35,7 @@ DEFAULT_MENTAL_MODELS = [
     },
     {
         "name": "User Information",
-        "source_query": "Summarize the users, habits, interests, priorities, and relevant context in language suitable for directly instructing an AI. Include patterns in behaviour, recurring topics, and any likes or dislikes. Write as guidance for an AI on how to adapt responses to align with the users personality and needs.",
+        "source_query": "Summarize the user's habits, interests, priorities, lifestyle patterns, and personal preferences in clear, neutral language suitable for inclusion in an AI prompt. Describe recurring topics, likes, dislikes, routines, and contextual facts about the user. Exclude any preferences related to how an assistant should speak, format responses, manage conversation flow, ask questions, handle timing, or support text to speech. Do not include interaction rules, assistant capabilities, or response strategies.",
         "tags": ["preferences", "user"],
     },
 ]
