@@ -50,6 +50,8 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
             self._attr_supported_features = (
                 conversation.ConversationEntityFeature.CONTROL
             )
+        # Track how many messages have been sent to Hindsight per conversation_id
+        self._sent_message_counts: dict[str, int] = {}
 
     @property
     def supported_languages(self) -> list[str] | Literal["*"]:
@@ -161,47 +163,62 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
         hindsight_enabled = parent_options.get(CONF_HINDSIGHT_ENABLED, False)
 
         if hindsight_enabled and not result.continue_conversation:
-            # Extract conversation history from chat_log
-            conversation_history = self._extract_conversation_history(chat_log)
-
-            # Generate bank name from entity_id
-            # Extract the entity name (e.g., "llamacpp" from "conversation.llamacpp")
-            entity_name = (
-                self.entity_id.split(".")[-1]
-                if "." in self.entity_id
-                else self.entity_id
+            # Extract only NEW conversation history from chat_log
+            # that hasn't been sent to Hindsight yet
+            conversation_history = self._extract_conversation_history(
+                chat_log, chat_log.conversation_id
             )
-            bank_id = f"{entity_name}-userprefs"
 
-            # Fire event asynchronously (non-blocking)
-            self.hass.bus.async_fire(
-                EVENT_CONVERSATION_FINISHED,
-                {
-                    "conversation_id": chat_log.conversation_id,
-                    "entity_id": self.entity_id,
-                    "config_entry_id": self.entry.entry_id,
-                    "hindsight_base_url": parent_options.get(CONF_HINDSIGHT_BASE_URL),
-                    "bank_id": bank_id,
-                    "conversation_history": conversation_history,
-                },
-            )
+            # Only send if there are new messages
+            if conversation_history:
+                # Generate bank name from entity_id
+                # Extract the entity name (e.g., "llamacpp" from "conversation.llamacpp")
+                entity_name = (
+                    self.entity_id.split(".")[-1]
+                    if "." in self.entity_id
+                    else self.entity_id
+                )
+                bank_id = f"{entity_name}-userprefs"
+
+                # Fire event asynchronously (non-blocking)
+                self.hass.bus.async_fire(
+                    EVENT_CONVERSATION_FINISHED,
+                    {
+                        "conversation_id": chat_log.conversation_id,
+                        "entity_id": self.entity_id,
+                        "config_entry_id": self.entry.entry_id,
+                        "hindsight_base_url": parent_options.get(CONF_HINDSIGHT_BASE_URL),
+                        "bank_id": bank_id,
+                        "conversation_history": conversation_history,
+                    },
+                )
+
+            # Clean up tracking for this conversation since it's complete
+            # (continue_conversation=False means this conversation is done)
+            if chat_log.conversation_id in self._sent_message_counts:
+                del self._sent_message_counts[chat_log.conversation_id]
 
         return result
 
     def _extract_conversation_history(
-        self, chat_log: conversation.ChatLog
+        self, chat_log: conversation.ChatLog, conversation_id: str | None
     ) -> list[dict]:
         """
-        Extract conversation history from chat log.
+        Extract NEW conversation history from chat log.
+
+        Only extracts messages that haven't been sent to Hindsight yet,
+        based on tracking the message count per conversation_id.
 
         Args:
             chat_log: The chat log to extract from
+            conversation_id: The conversation identifier for tracking
 
         Returns:
-            List of message dictionaries with role and content
+            List of NEW message dictionaries with role and content
 
         """
-        history = []
+        # Get all current messages (filtering out tool results)
+        all_messages = []
         for content in chat_log.content:
             # Skip tool results, only process text messages
             if isinstance(content, conversation.ToolResultContent):
@@ -210,5 +227,19 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
                 "role": content.role,
                 "content": content.content or "",
             }
-            history.append(msg)
-        return history
+            all_messages.append(msg)
+
+        # If no conversation_id, return all messages (shouldn't happen but be safe)
+        if not conversation_id:
+            return all_messages
+
+        # Get the number of messages already sent for this conversation
+        already_sent_count = self._sent_message_counts.get(conversation_id, 0)
+
+        # Extract only new messages (those after already_sent_count)
+        new_messages = all_messages[already_sent_count:]
+
+        # Update the tracking count to include these new messages
+        self._sent_message_counts[conversation_id] = len(all_messages)
+
+        return new_messages
