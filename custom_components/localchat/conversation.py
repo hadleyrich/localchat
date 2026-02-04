@@ -83,6 +83,7 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
 
                 # Retrieve mental model content from bank
                 mental_model_content = await retrieve_mental_models(
+                    self.hass,
                     hindsight_base_url,
                     bank_id,
                 )
