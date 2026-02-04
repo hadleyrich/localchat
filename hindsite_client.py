@@ -585,7 +585,7 @@ class Hindsight:
         trigger: dict[str, Any] | None = None,
     ):
         """
-        Create a mental model (async).
+        Create a mental model (runs reflect in background) (async).
 
         Args:
             bank_id: The memory bank ID
