@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal
 
 import demoji
@@ -359,14 +358,6 @@ class LocalChatEntity(Entity):
             max_message_history,
         )
 
-
-            # remove the get date time tool if we are injecting it
-            if tools:
-                tools = [
-                    tool
-                    for tool in tools
-                    if not tool["function"]["name"].endswith("GetDateTime")
-                ]
         model_args["messages"] = messages
 
         if tools:
