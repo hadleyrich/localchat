@@ -91,7 +91,10 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
                 # Inject mental models into system prompt if content exists
                 if mental_model_content:
                     mental_models_section = (
-                        f"\n\n# Personality and Preferences\n\n{mental_model_content}"
+                        f"\n\nIMPORTANT: The following information about the user and your personality has been provided to you. "
+                        f"You MUST use this information when answering questions about the user, their preferences, or their household. "
+                        f"This is factual information you have access to.\n\n"
+                        f"{mental_model_content}"
                     )
                     system_prompt = (system_prompt or "") + mental_models_section
                     LOGGER.debug(

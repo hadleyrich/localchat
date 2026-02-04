@@ -364,10 +364,14 @@ class LocalChatEntity(Entity):
             role = msg.get("role", "unknown")
             content = msg.get("content", "")
             if isinstance(content, str):
-                preview = content[:200] + "..." if len(content) > 200 else content
+                content_len = len(content)
+                preview = content[:200] + "..." if content_len > 200 else content
+                LOGGER.debug(
+                    f"Message[{i}]: role={role}, length={content_len} chars, content={preview}"
+                )
             else:
                 preview = f"[{type(content).__name__}]"
-            LOGGER.debug(f"Message[{i}]: role={role}, content={preview}")
+                LOGGER.debug(f"Message[{i}]: role={role}, content={preview}")
 
         model_args["messages"] = messages
 
