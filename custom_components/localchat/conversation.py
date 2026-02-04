@@ -109,11 +109,23 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
 
                 LOGGER.debug(f"Update system prompt: {system_prompt}")
 
+        # Add current date to system prompt even if Hindsight is disabled
+        if not hindsight_enabled:
+            dt = datetime.now()
+            date_str = dt.strftime("%A %d %B, %Y")
+            system_prompt = (
+                (system_prompt or "") + "\n\n" + f"The current date is: `{date_str}`."
+            )
+
         hass_apis = [api.id for api in llm.async_get_apis(self.hass)]
 
         # Filter out any tool providers that no longer exist
         llm_apis = options.get(CONF_LLM_HASS_API, [])
         llm_apis = [api for api in llm_apis if api in hass_apis]
+
+        LOGGER.debug(
+            f"Final system prompt before async_provide_llm_data: {system_prompt}"
+        )
 
         try:
             await chat_log.async_provide_llm_data(
@@ -124,6 +136,13 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
             )
         except conversation.ConverseError as err:
             return err.as_conversation_result()
+
+        # Log chat_log content to verify system prompt was added
+        LOGGER.debug(f"Chat log content count: {len(chat_log.content)}")
+        for i, content in enumerate(chat_log.content):
+            LOGGER.debug(
+                f"Chat log content[{i}]: role={getattr(content, 'role', 'N/A')}, type={type(content).__name__}"
+            )
 
         await self._async_handle_chat_log(chat_log, user_input=user_input)
 
