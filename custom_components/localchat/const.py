@@ -33,23 +33,6 @@ CONF_CONTENT_INJECTION_METHODS = [
 # Hindsight configuration constants
 CONF_HINDSIGHT_ENABLED = "hindsight_enabled"
 CONF_HINDSIGHT_BASE_URL = "hindsight_base_url"
-CONF_HINDSIGHT_SUMMARIZATION_PROMPT = "hindsight_summarization_prompt"
-
-# Default summarization prompt - combines user memories and agent traits
-DEFAULT_HINDSIGHT_SUMMARIZATION_PROMPT = """Analyze the following conversation and extract:
-1. Any facts mentioned about users, preferences, or context
-2. Any patterns in how the user communicates or what they prefer
-3. Communication style and tone used by the assistant
-4. Personality traits exhibited by the assistant (e.g., formal, casual, humorous, technical)
-5. Helpful patterns or approaches the assistant took
-6. Any important information that should be remembered for future conversations
-
-Only include information that would be useful to remember long-term. Be concise.
-
-Conversation:
-{conversation_text}
-
-Extract and format as a numbered list of facts/preferences/traits (one per line, starting with a number):"""
 
 # Event for conversation completion with Hindsight integration
 EVENT_CONVERSATION_FINISHED = f"{DOMAIN}_conversation_finished"

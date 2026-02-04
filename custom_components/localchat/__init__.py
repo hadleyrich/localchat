@@ -14,7 +14,6 @@ from .const import (
     CONF_BASE_URL,
     CONF_HINDSIGHT_BASE_URL,
     CONF_HINDSIGHT_ENABLED,
-    CONF_HINDSIGHT_SUMMARIZATION_PROMPT,
     EVENT_CONVERSATION_FINISHED,
     LOGGER,
 )
@@ -57,7 +56,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalChatConfigEntry) ->
     # Set up Hindsight event listener if enabled
     if entry.data.get(CONF_HINDSIGHT_ENABLED, False):
         hindsight_base_url = entry.data.get(CONF_HINDSIGHT_BASE_URL)
-        summarization_prompt = entry.data.get(CONF_HINDSIGHT_SUMMARIZATION_PROMPT)
 
         if hindsight_base_url:
             LOGGER.info(
@@ -103,7 +101,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalChatConfigEntry) ->
                             bank_id,
                             conversation_history,
                             conversation_id or "",
-                            summarization_prompt,
                         )
                     except Exception:
                         LOGGER.exception(
