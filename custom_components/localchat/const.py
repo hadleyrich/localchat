@@ -59,12 +59,12 @@ EVENT_CONVERSATION_FINISHED = f"{DOMAIN}_conversation_finished"
 DEFAULT_MENTAL_MODELS = [
     {
         "name": "Agent Personality",  # Human-readable name
-        "source_query": "How should this AI assistant speak, behave, and present itself? What personality traits, tone, and communication style does it exhibit?",  # Query used to generate content
+        "source_query": "Summarize the AI agent's personality and behaviour in a way that can be directly used as instructions in a prompt. Describe tone, style, humour, problem-solving approach, decision-making tendencies, and interaction style. Write as if giving a new AI instance guidance on how this agent should speak, think, and respond to users, highlighting notable personality traits and recurring patterns in behaviour.",  # Query used to generate content
         "tags": ["personality", "behavior", "tone"],  # Tags for filtering/organization
     },
     {
         "name": "User Information",
-        "source_query": "What are the user's preferences, communication style, interests, and important information about them?",
+        "source_query": "Summarize the user’s preferences, habits, interests, communication style, priorities, and relevant context in language suitable for directly instructing an AI. Include patterns in behaviour, recurring topics, preferred ways of interacting, and any constraints or dislikes. Write as guidance for an AI on how to adapt responses to align with the user’s personality, needs, and preferences.",
         "tags": ["preferences", "user"],
     },
 ]
