@@ -206,9 +206,7 @@ async def ensure_mental_models(
         try:
             # Get existing mental models (bank may not exist yet, which is fine)
             try:
-                existing = await hass.async_add_executor_job(
-                    client.list_mental_models, bank_id, None
-                )
+                existing = await client.alist_mental_models(bank_id, None)
                 existing_names = {m.name for m in existing.items}
             except Exception as list_err:
                 LOGGER.debug(
@@ -226,8 +224,7 @@ async def ensure_mental_models(
                         model_def["name"],
                         bank_id,
                     )
-                    result = await hass.async_add_executor_job(
-                        client.create_mental_model,
+                    result = await client.acreate_mental_model(
                         bank_id,
                         model_def["name"],
                         model_def["source_query"],
@@ -274,9 +271,7 @@ async def retrieve_mental_models(
         try:
             # List all mental models (bank may not exist yet)
             try:
-                mental_models = await hass.async_add_executor_job(
-                    client.list_mental_models, bank_id, None
-                )
+                mental_models = await client.alist_mental_models(bank_id, None)
             except Exception as list_err:
                 LOGGER.debug(
                     "Could not list mental models from bank %s (may not exist yet): %s",
@@ -294,8 +289,8 @@ async def retrieve_mental_models(
             for mental_model in mental_models.items:
                 try:
                     # Get full mental model details including content
-                    full_model = await hass.async_add_executor_job(
-                        client.get_mental_model, bank_id, mental_model.id
+                    full_model = await client.aget_mental_model(
+                        bank_id, mental_model.id
                     )
                     # Mental models may not have content yet if still generating
                     if full_model.content:
