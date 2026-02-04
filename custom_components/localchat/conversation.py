@@ -197,11 +197,9 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
 
                 # Clean up old tracking entries to prevent unbounded memory growth
                 # Keep only the most recent 100 conversations (LRU eviction)
-                if len(self._sent_message_counts) > 100:
-                    # Remove oldest entries (first items in OrderedDict)
-                    # Pop items until we're back to 100
-                    while len(self._sent_message_counts) > 100:
-                        self._sent_message_counts.popitem(last=False)
+                while len(self._sent_message_counts) > 100:
+                    # Remove oldest entry (first item in OrderedDict)
+                    self._sent_message_counts.popitem(last=False)
 
         return result
 
