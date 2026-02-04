@@ -91,7 +91,7 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
                 # Inject mental models into system prompt if content exists
                 if mental_model_content:
                     mental_models_section = (
-                        f"\n\n# Personality and Preferences\n{mental_model_content}"
+                        f"\n\n# Personality and Preferences\n\n{mental_model_content}"
                     )
                     user_input.extra_system_prompt = (
                         user_input.extra_system_prompt or ""

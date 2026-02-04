@@ -139,8 +139,11 @@ async def process_conversation_memory(
             LOGGER.debug("No facts extracted, skipping Hindsight storage")
             return
 
-        # Use official Hindsight client
-        client = Hindsight(base_url=hindsight_base_url, timeout=30.0)
+        # Create client in executor to avoid blocking the event loop on SSL setup
+        def create_client() -> Hindsight:
+            return Hindsight(base_url=hindsight_base_url, timeout=30.0)
+
+        client = await hass.async_add_executor_job(create_client)
 
         try:
             # Store each fact as a separate item in Hindsight batch
@@ -201,7 +204,11 @@ async def ensure_mental_models(
         if mental_models is None:
             mental_models = DEFAULT_MENTAL_MODELS
 
-        client = Hindsight(base_url=hindsight_base_url, timeout=30.0)
+        # Create client in executor to avoid blocking the event loop on SSL setup
+        def create_client() -> Hindsight:
+            return Hindsight(base_url=hindsight_base_url, timeout=30.0)
+
+        client = await hass.async_add_executor_job(create_client)
 
         try:
             # Get existing mental models (bank may not exist yet, which is fine)
@@ -280,7 +287,11 @@ async def retrieve_mental_models(
 
     """
     try:
-        client = Hindsight(base_url=hindsight_base_url, timeout=30.0)
+        # Create client in executor to avoid blocking the event loop on SSL setup
+        def create_client() -> Hindsight:
+            return Hindsight(base_url=hindsight_base_url, timeout=30.0)
+
+        client = await hass.async_add_executor_job(create_client)
 
         try:
             # List all mental models (bank may not exist yet)
@@ -344,4 +355,3 @@ async def retrieve_mental_models(
     except Exception:
         LOGGER.exception("Error retrieving mental models")
         return ""
-
