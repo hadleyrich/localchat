@@ -206,7 +206,9 @@ async def ensure_mental_models(
         try:
             # Get existing mental models (bank may not exist yet, which is fine)
             try:
-                existing = await client.alist_mental_models(bank_id, None)
+                existing = await client._mental_models_api.list_mental_models(
+                    bank_id, tags=None
+                )
                 existing_names = {m.name for m in existing.items}
             except Exception as list_err:
                 LOGGER.debug(
@@ -224,13 +226,25 @@ async def ensure_mental_models(
                         model_def["name"],
                         bank_id,
                     )
-                    result = await client.acreate_mental_model(
-                        bank_id,
-                        model_def["name"],
-                        model_def["source_query"],
-                        model_def.get("tags", []),
-                        None,  # max_tokens
-                        {"refresh_after_consolidation": True},  # trigger
+                    # Build request object directly
+                    from hindsight_client_api.models import (
+                        create_mental_model_request,
+                        mental_model_trigger,
+                    )
+
+                    trigger_obj = mental_model_trigger.MentalModelTrigger(
+                        refresh_after_consolidation=True
+                    )
+                    request_obj = create_mental_model_request.CreateMentalModelRequest(
+                        name=model_def["name"],
+                        source_query=model_def["source_query"],
+                        tags=model_def.get("tags", []),
+                        max_tokens=None,
+                        trigger=trigger_obj,
+                    )
+
+                    result = await client._mental_models_api.create_mental_model(
+                        bank_id, request_obj
                     )
                     LOGGER.debug(
                         "Mental model creation operation ID: %s", result.operation_id
@@ -271,7 +285,9 @@ async def retrieve_mental_models(
         try:
             # List all mental models (bank may not exist yet)
             try:
-                mental_models = await client.alist_mental_models(bank_id, None)
+                mental_models = await client._mental_models_api.list_mental_models(
+                    bank_id, tags=None
+                )
             except Exception as list_err:
                 LOGGER.debug(
                     "Could not list mental models from bank %s (may not exist yet): %s",
@@ -289,7 +305,7 @@ async def retrieve_mental_models(
             for mental_model in mental_models.items:
                 try:
                     # Get full mental model details including content
-                    full_model = await client.aget_mental_model(
+                    full_model = await client._mental_models_api.get_mental_model(
                         bank_id, mental_model.id
                     )
                     # Mental models may not have content yet if still generating
