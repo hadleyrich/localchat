@@ -37,12 +37,12 @@ async def summarize_conversation(
         List of extracted facts/preferences, or None if failed
 
     """
-    # Format conversation for summarization
+    # Format conversation for summarization (exclude system prompts, only include user/assistant)
     conversation_text = "\n\n".join(
         [
             f"{msg.get('role', 'unknown')}: {msg.get('content', '')}"
             for msg in conversation_history
-            if msg.get("content")
+            if msg.get("content") and msg.get("role") in ("user", "assistant")
         ]
     )
 

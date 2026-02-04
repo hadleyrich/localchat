@@ -120,7 +120,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalChatConfigEntry) ->
                                 hindsight_base_url,
                                 user_memories_bank_id,
                                 conversation_history,
-                                conversation_id,
+                                conversation_id or "",
                                 user_memories_prompt,
                             )
                         except Exception:
@@ -137,7 +137,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: LocalChatConfigEntry) ->
                                 hindsight_base_url,
                                 agent_traits_bank_id,
                                 conversation_history,
-                                conversation_id,
+                                conversation_id or "",
                                 agent_traits_prompt,
                             )
                         except Exception:
