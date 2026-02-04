@@ -33,42 +33,30 @@ CONF_CONTENT_INJECTION_METHODS = [
 # Hindsight configuration constants
 CONF_HINDSIGHT_ENABLED = "hindsight_enabled"
 CONF_HINDSIGHT_BASE_URL = "hindsight_base_url"
-CONF_HINDSIGHT_USER_MEMORIES_PROMPT = "hindsight_user_memories_prompt"
-CONF_HINDSIGHT_AGENT_TRAITS_PROMPT = "hindsight_agent_traits_prompt"
+CONF_HINDSIGHT_SUMMARIZATION_PROMPT = "hindsight_summarization_prompt"
 
-# Default summarization prompt for user memories/preferences
-DEFAULT_HINDSIGHT_USER_MEMORIES_PROMPT = """Analyze the following conversation and extract:
+# Default summarization prompt - combines user memories and agent traits
+DEFAULT_HINDSIGHT_SUMMARIZATION_PROMPT = """Analyze the following conversation and extract:
 1. Any facts mentioned about users, preferences, or context
 2. Any patterns in how the user communicates or what they prefer
-3. Any important information that should be remembered for future conversations
+3. Communication style and tone used by the assistant
+4. Personality traits exhibited by the assistant (e.g., formal, casual, humorous, technical)
+5. Helpful patterns or approaches the assistant took
+6. Any important information that should be remembered for future conversations
 
 Only include information that would be useful to remember long-term. Be concise.
 
 Conversation:
 {conversation_text}
 
-Extract and format as a numbered list of facts/preferences (one per line, starting with a number):"""
-
-# Default summarization prompt for agent personality/traits
-DEFAULT_HINDSIGHT_AGENT_TRAITS_PROMPT = """Analyze the following conversation and extract observations about the assistant's personality and behavior patterns:
-1. Communication style and tone used by the assistant
-2. Helpful patterns or approaches the assistant took
-3. Personality traits exhibited (e.g., formal, casual, humorous, technical)
-4. Any consistent behaviors or preferences in how the assistant responded
-
-Focus on extracting traits that would help the assistant maintain a consistent personality. Be concise.
-
-Conversation:
-{conversation_text}
-
-Extract and format as a numbered list of personality traits/behaviors (one per line, starting with a number):"""
+Extract and format as a numbered list of facts/preferences/traits (one per line, starting with a number):"""
 
 # Event for conversation completion with Hindsight integration
 EVENT_CONVERSATION_FINISHED = f"{DOMAIN}_conversation_finished"
 
-# Default mental model configurations for agent traits bank
-# These define agent personality and behavior patterns
-DEFAULT_TRAITS_MENTAL_MODELS = [
+# Default mental model configurations - all stored in single userprefs bank
+# These define agent personality and remember user preferences
+DEFAULT_MENTAL_MODELS = [
     {
         "name": "Assistant Personality",  # Human-readable name
         "source_query": "How should a Home Assistant voice assistant speak, behave, and present itself?",  # Query used to generate content
@@ -79,11 +67,6 @@ DEFAULT_TRAITS_MENTAL_MODELS = [
         "source_query": "How and when should humor be used by this assistant?",
         "tags": ["humor", "personality"],
     },
-]
-
-# Default mental model configurations for user preferences bank
-# These remember user preferences and communication style
-DEFAULT_USERPREFS_MENTAL_MODELS = [
     {
         "name": "User Preferences",
         "source_query": "What are the user's preferences and communication style?",

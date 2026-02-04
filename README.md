@@ -8,25 +8,24 @@ This integration supports **Hindsight**, a long-term memory system designed spec
 
 ### Mental Models
 
-Mental Models are pre-computed, automatically-refreshing summaries that define your agent's personality and remember user preferences. They are stored directly in your memory banks alongside observations for maximum context.
+Mental Models are pre-computed, automatically-refreshing summaries that define your agent's personality and remember user preferences. They are stored directly in your memory bank alongside observations for maximum context.
 
 **Default Mental Models:**
-- **Assistant Personality**: How your assistant should speak, behave, and present itself (stored in traits bank)
-- **Humor Guidelines**: When and how humor should be used (stored in traits bank)
-- **User Preferences**: Communication style and user preferences (stored in userprefs bank)
+- **Assistant Personality**: How your assistant should speak, behave, and present itself
+- **Humor Guidelines**: When and how humor should be used
+- **User Preferences**: Communication style and user preferences
 
 **How They Work:**
 1. Mental models are automatically created when Hindsight is enabled (always on)
-2. Personality models are stored in the `{entity_name}-traits` bank with agent observations
-3. User preference models are stored in the `{entity_name}-userprefs` bank with user memories
-4. Content is retrieved and injected into the system prompt before each conversation
-5. They automatically refresh after observation consolidation to stay current
+2. All models are stored in the `{entity_name}-userprefs` bank alongside conversation memories
+3. Content is retrieved and injected into the system prompt before each conversation
+4. They automatically refresh after observation consolidation to stay current
 
 **Benefits:**
 - Consistent personality across all conversations
 - Fast retrieval (pre-computed responses)
 - Automatic learning from interactions
-- Mental models have full context from their memory banks
+- Mental models have full context from the memory bank
 - High-quality, curated responses for common topics
 
 #### Setup:
@@ -34,7 +33,7 @@ Mental Models are pre-computed, automatically-refreshing summaries that define y
 1. Install and run Hindsight server (see [Hindsight documentation](https://hindsight.vectorize.io/))
 2. During Local Chat configuration, enable "Hindsight Memory"
 3. Provide your Hindsight server URL (e.g., `http://localhost:8888`)
-4. Optionally customize prompts for memory extraction
+4. Optionally customize the summarization prompt for memory extraction
 
 #### How it Works:
 
@@ -42,11 +41,11 @@ Mental Models are pre-computed, automatically-refreshing summaries that define y
 - The AI Task agent summarizes the conversation to extract:
   - Facts mentioned about users, preferences, or context
   - Patterns in communication style or preferences
+  - Agent personality traits and behavior patterns
   - Important information for future conversations
-- Extracted memories are stored in your Hindsight memory banks:
-  - `{entity_name}-userprefs`: User memories and preferences
-  - `{entity_name}-traits`: Agent personality traits
-- Mental models are automatically created in these banks on first conversation and refresh after consolidation
+- Extracted memories are stored in your Hindsight memory bank:
+  - `{entity_name}-userprefs`: All memories including user preferences and agent personality
+- Mental models are automatically created in this bank on first conversation and refresh after consolidation
 - This happens asynchronously, so it doesn't slow down conversations
 
 #### Benefits:
@@ -54,7 +53,7 @@ Mental Models are pre-computed, automatically-refreshing summaries that define y
 - Your AI agent remembers facts and preferences across sessions
 - Consistent personality through Mental Models
 - No need to repeat information in every conversation
-- The agent builds a knowledge base about users and context over time
+- The agent builds a comprehensive knowledge base about users, context, and its own personality over time
 - Uses Hindsight's multi-strategy retrieval (semantic, keyword, graph, temporal)
 - Mental models provide instant, pre-computed responses for personality questions
 
@@ -62,7 +61,7 @@ Mental Models are pre-computed, automatically-refreshing summaries that define y
 
 - A running Hindsight server
 - At least one AI Task agent configured (used for summarization and mental model generation)
-- Memory banks are created automatically on first use
+- Memory bank is created automatically on first use
 
 ## Acknowledgements
 
