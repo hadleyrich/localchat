@@ -1,5 +1,6 @@
 """Conversation support for Local Chat."""
 
+from collections import OrderedDict
 from datetime import datetime
 from typing import Literal
 
@@ -51,7 +52,8 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
                 conversation.ConversationEntityFeature.CONTROL
             )
         # Track how many messages have been sent to Hindsight per conversation_id
-        self._sent_message_counts: dict[str, int] = {}
+        # Using OrderedDict to maintain LRU semantics with move_to_end
+        self._sent_message_counts: OrderedDict[str, int] = OrderedDict()
 
     @property
     def supported_languages(self) -> list[str] | Literal["*"]:
@@ -194,15 +196,12 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
                 )
 
                 # Clean up old tracking entries to prevent unbounded memory growth
-                # Keep only the most recent 100 conversations
+                # Keep only the most recent 100 conversations (LRU eviction)
                 if len(self._sent_message_counts) > 100:
-                    # Keep the last 100 entries, remove the rest
-                    keys_to_keep = set(list(self._sent_message_counts.keys())[-100:])
-                    keys_to_remove = [
-                        key for key in self._sent_message_counts if key not in keys_to_keep
-                    ]
-                    for key in keys_to_remove:
-                        del self._sent_message_counts[key]
+                    # Remove oldest entries (first items in OrderedDict)
+                    # Pop items until we're back to 100
+                    while len(self._sent_message_counts) > 100:
+                        self._sent_message_counts.popitem(last=False)
 
         return result
 
@@ -247,5 +246,7 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
 
         # Update the tracking count to include these new messages
         self._sent_message_counts[conversation_id] = len(all_messages)
+        # Move this conversation to the end (most recently used)
+        self._sent_message_counts.move_to_end(conversation_id)
 
         return new_messages
