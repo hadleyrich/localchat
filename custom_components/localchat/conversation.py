@@ -193,10 +193,13 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
                     },
                 )
 
-            # Clean up tracking for this conversation since it's complete
-            # (continue_conversation=False means this conversation is done)
-            if chat_log.conversation_id in self._sent_message_counts:
-                del self._sent_message_counts[chat_log.conversation_id]
+                # Clean up old tracking entries to prevent unbounded memory growth
+                # Keep only the most recent 100 conversations
+                if len(self._sent_message_counts) > 100:
+                    # Remove the oldest entries (first items in dict)
+                    oldest_keys = list(self._sent_message_counts.keys())[:-100]
+                    for key in oldest_keys:
+                        del self._sent_message_counts[key]
 
         return result
 
