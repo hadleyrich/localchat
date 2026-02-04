@@ -358,6 +358,17 @@ class LocalChatEntity(Entity):
             max_message_history,
         )
 
+        # Debug: log message roles being sent to LLM
+        LOGGER.debug(f"Messages to send to LLM: {len(messages)}")
+        for i, msg in enumerate(messages):
+            role = msg.get("role", "unknown")
+            content = msg.get("content", "")
+            if isinstance(content, str):
+                preview = content[:200] + "..." if len(content) > 200 else content
+            else:
+                preview = f"[{type(content).__name__}]"
+            LOGGER.debug(f"Message[{i}]: role={role}, content={preview}")
+
         model_args["messages"] = messages
 
         if tools:

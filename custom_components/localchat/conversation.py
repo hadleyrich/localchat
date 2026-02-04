@@ -140,8 +140,11 @@ class LocalChatConversationEntity(LocalChatEntity, conversation.ConversationEnti
         # Log chat_log content to verify system prompt was added
         LOGGER.debug(f"Chat log content count: {len(chat_log.content)}")
         for i, content in enumerate(chat_log.content):
+            content_preview = getattr(content, "content", "N/A")
+            if isinstance(content_preview, str) and len(content_preview) > 200:
+                content_preview = content_preview[:200] + "..."
             LOGGER.debug(
-                f"Chat log content[{i}]: role={getattr(content, 'role', 'N/A')}, type={type(content).__name__}"
+                f"Chat log content[{i}]: role={getattr(content, 'role', 'N/A')}, type={type(content).__name__}, content={content_preview}"
             )
 
         await self._async_handle_chat_log(chat_log, user_input=user_input)
