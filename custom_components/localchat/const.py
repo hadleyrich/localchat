@@ -58,18 +58,13 @@ EVENT_CONVERSATION_FINISHED = f"{DOMAIN}_conversation_finished"
 # These define agent personality and remember user preferences
 DEFAULT_MENTAL_MODELS = [
     {
-        "name": "Assistant Personality",  # Human-readable name
-        "source_query": "How should a Home Assistant voice assistant speak, behave, and present itself?",  # Query used to generate content
+        "name": "Agent Personality",  # Human-readable name
+        "source_query": "How should this AI assistant speak, behave, and present itself? What personality traits, tone, and communication style does it exhibit?",  # Query used to generate content
         "tags": ["personality", "behavior", "tone"],  # Tags for filtering/organization
     },
     {
-        "name": "Humor Guidelines",
-        "source_query": "How and when should humor be used by this assistant?",
-        "tags": ["humor", "personality"],
-    },
-    {
-        "name": "User Preferences",
-        "source_query": "What are the user's preferences and communication style?",
+        "name": "User Information",
+        "source_query": "What are the user's preferences, communication style, interests, and important information about them?",
         "tags": ["preferences", "user"],
     },
 ]
