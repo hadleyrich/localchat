@@ -126,6 +126,18 @@ def options_from_data(data: Mapping[str, Any]) -> HindsightOptions:
     )
 
 
+def _is_missing_bank(err: Exception) -> bool:
+    """
+    Return True when Hindsight says the bank does not exist yet.
+
+    A bank is created by the first successful retain, so recall and
+    mental-model reads return 404 on every turn until a conversation has been
+    stored. That is the normal state of a new agent, not a failure worth
+    logging a warning about on every turn.
+    """
+    return getattr(err, "status", None) == 404
+
+
 class HindsightMemory:
     """
     Read and write memory for one config entry's Hindsight bank.
@@ -226,6 +238,13 @@ class HindsightMemory:
                     name = getattr(item, "name", None) or model_id or "Memory"
                     contents.append(f"## {name}\n{content}")
         except Exception as err:
+            if _is_missing_bank(err):
+                LOGGER.debug(
+                    "Bank %s does not exist yet at %s; no mental models",
+                    self.bank_id,
+                    self.base_url,
+                )
+                return ""
             LOGGER.warning(
                 "Could not read mental models from %s: %s", self.base_url, err
             )
@@ -252,6 +271,13 @@ class HindsightMemory:
                 budget=self.recall_budget,
             )
         except Exception as err:
+            if _is_missing_bank(err):
+                LOGGER.debug(
+                    "Bank %s does not exist yet at %s; nothing to recall",
+                    self.bank_id,
+                    self.base_url,
+                )
+                return ""
             LOGGER.warning("Could not recall from %s: %s", self.base_url, err)
             return ""
 
