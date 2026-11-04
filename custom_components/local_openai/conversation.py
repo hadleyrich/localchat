@@ -179,8 +179,12 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
         elif always_continue_conversation:
             chat_log_result.continue_conversation = True
 
-        if not chat_log_result.continue_conversation:
-            self._async_store_conversation(chat_log)
+        # Store on every completed turn, whatever the continuation flag says:
+        # "always continue conversation" keeps one turn open across follow-ups,
+        # and gating on it would mean an agent configured that way never
+        # remembers anything. Re-storing the same conversation replaces its
+        # document, and the server retains only the delta.
+        self._async_store_conversation(chat_log)
 
         return chat_log_result
 
