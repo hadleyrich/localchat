@@ -47,10 +47,22 @@ if TYPE_CHECKING:
 # Identifies this integration to the server, in front of the client's own token
 USER_AGENT = "local-openai-llm"
 
+# Retain is not a quick write: the server runs its extraction LLM over the
+# transcript before answering, which took 30-120s on a 20B model. The client
+# timeout must outlast that, or the request is cancelled mid-extraction
+# ("[RETAIN CANCELLED] ... client disconnected") and nothing is stored.
+WRITE_TIMEOUT_SECONDS = 300.0
+
+# Recall and mental models sit on the conversation path, so they get their own
+# short bound instead of inheriting the generous write timeout.
+READ_TIMEOUT_SECONDS = 10.0
+
 
 def _create_client(base_url: str) -> Hindsight:
     """Create a Hindsight client (blocking, call in an executor)."""
-    return Hindsight(base_url=base_url, timeout=30.0, user_agent=USER_AGENT)
+    return Hindsight(
+        base_url=base_url, timeout=WRITE_TIMEOUT_SECONDS, user_agent=USER_AGENT
+    )
 
 
 def _text_of(value: Any) -> str:
@@ -224,7 +236,10 @@ class HindsightMemory:
 
         try:
             client = await self._async_client()
-            result = await client.alist_mental_models(self.bank_id, detail="content")
+            result = await asyncio.wait_for(
+                client.alist_mental_models(self.bank_id, detail="content"),
+                READ_TIMEOUT_SECONDS,
+            )
             contents: list[str] = []
             for item in _as_items(result):
                 content = getattr(item, "content", None)
@@ -232,7 +247,10 @@ class HindsightMemory:
                 if not content and model_id:
                     # Servers older than the detail parameter only return
                     # metadata from the list call, so fetch this one directly.
-                    model = await client.aget_mental_model(self.bank_id, model_id)
+                    model = await asyncio.wait_for(
+                        client.aget_mental_model(self.bank_id, model_id),
+                        READ_TIMEOUT_SECONDS,
+                    )
                     content = getattr(model, "content", None)
                 if content:
                     name = getattr(item, "name", None) or model_id or "Memory"
@@ -264,11 +282,14 @@ class HindsightMemory:
         """Return memories relevant to ``query``, formatted for a prompt."""
         try:
             client = await self._async_client()
-            result = await client.arecall(
-                self.bank_id,
-                query,
-                max_tokens=self.recall_max_tokens,
-                budget=self.recall_budget,
+            result = await asyncio.wait_for(
+                client.arecall(
+                    self.bank_id,
+                    query,
+                    max_tokens=self.recall_max_tokens,
+                    budget=self.recall_budget,
+                ),
+                READ_TIMEOUT_SECONDS,
             )
         except Exception as err:
             if _is_missing_bank(err):

@@ -7,6 +7,7 @@ the best-effort guarantee, without needing a Hindsight server.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import cast
@@ -279,6 +280,30 @@ async def test_mental_models_treat_a_missing_bank_as_no_memory(caplog) -> None:
         assert await memory.async_mental_models() == ""
 
     assert not [record for record in caplog.records if record.levelname == "WARNING"]
+
+
+def test_client_timeout_outlasts_server_side_extraction() -> None:
+    """Retain is slow: the server runs its extraction LLM before answering.
+
+    A 30s client timeout cancelled every retain mid-extraction
+    ("[RETAIN CANCELLED] ... client disconnected") and stored nothing, so the
+    timeout has to outlast extraction rather than track a read.
+    """
+    client = hindsight._create_client("http://hindsight.example:8888")
+    assert client._timeout >= 120
+
+
+async def test_recall_gives_up_quickly_on_a_slow_server(monkeypatch) -> None:
+    """Reads sit on the conversation path, so they must not inherit the write timeout."""
+    memory, client = make_memory()
+
+    async def slow_recall(*args: object, **kwargs: object) -> None:
+        await asyncio.sleep(1)
+
+    monkeypatch.setattr(client, "arecall", slow_recall)
+    monkeypatch.setattr(hindsight, "READ_TIMEOUT_SECONDS", 0.05)
+
+    assert await memory.async_recall("what coffee do I like?") == ""
 
 
 async def test_memory_is_best_effort_on_failure() -> None:
