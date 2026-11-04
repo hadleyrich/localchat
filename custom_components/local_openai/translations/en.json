@@ -56,8 +56,8 @@
               "hindsight_mental_models": "Inject mental models"
             },
             "data_description": {
-              "hindsight_base_url": "Including protocol and port, e.g. http://homeassistant.local:8888",
-              "hindsight_bank_id": "Leave empty to use '<agent>-userprefs'. Set it to keep using an existing bank.",
+              "hindsight_base_url": "Including protocol and port",
+              "hindsight_bank_id": "Leave empty to use a bank named after this agent. Set it to keep using an existing bank.",
               "hindsight_recall": "Adds a retrieval round trip to every turn",
               "hindsight_mental_models": "Summaries of the user and of the agent's own personality. Cached, and refreshed by Hindsight after consolidation."
             }
@@ -118,8 +118,8 @@
               "hindsight_mental_models": "Inject mental models"
             },
             "data_description": {
-              "hindsight_base_url": "Including protocol and port, e.g. http://homeassistant.local:8888",
-              "hindsight_bank_id": "Leave empty to use '<agent>-userprefs'. Set it to keep using an existing bank.",
+              "hindsight_base_url": "Including protocol and port",
+              "hindsight_bank_id": "Leave empty to use a bank named after this agent. Set it to keep using an existing bank.",
               "hindsight_recall": "Adds a retrieval round trip to every turn",
               "hindsight_mental_models": "Summaries of the user and of the agent's own personality. Cached, and refreshed by Hindsight after consolidation."
             }

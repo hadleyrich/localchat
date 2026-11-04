@@ -164,7 +164,7 @@ class HindsightMemory:
         self._client = client
         self._client_lock = asyncio.Lock()
         self._mental_models: str = ""
-        self._mental_models_at: float = 0.0
+        self._mental_models_at: float | None = None
         self._mental_models_ensured = False
 
     async def _async_client(self) -> Hindsight:
@@ -205,6 +205,7 @@ class HindsightMemory:
         """Return the mental model content, cached for ``mental_model_ttl``."""
         if (
             self._mental_models
+            and self._mental_models_at is not None
             and time.monotonic() - self._mental_models_at < self.mental_model_ttl
         ):
             return self._mental_models
@@ -300,7 +301,7 @@ class HindsightMemory:
 
         # Mental models refresh after consolidation, so drop the cached copy
         # and let the next turn pick up whatever changed.
-        self._mental_models_at = 0.0
+        self._mental_models_at = None
 
         # The retain above created the bank if it did not exist, so create the
         # default mental models now rather than racing bank creation on first use.
