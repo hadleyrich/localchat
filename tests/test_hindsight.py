@@ -38,6 +38,12 @@ HISTORY = [
 ]
 
 
+class BankNotFound(Exception):
+    """Stand-in for aiohttp's ClientResponseError with status 404."""
+
+    status = 404
+
+
 class FakeClient:
     """Minimal stand-in for hindsight_client.Hindsight."""
 
@@ -48,6 +54,7 @@ class FakeClient:
         self.list_calls = 0
         self.closed = False
         self.fail = False
+        self.missing_bank = False
 
     async def aretain(self, **kwargs) -> SimpleNamespace:
         if self.fail:
@@ -56,6 +63,8 @@ class FakeClient:
         return SimpleNamespace(success=True)
 
     async def arecall(self, bank_id: str, query: str, **kwargs) -> SimpleNamespace:
+        if self.missing_bank:
+            raise BankNotFound(f"Bank '{bank_id}' not found")
         if self.fail:
             raise RuntimeError("server down")
         self.recalls.append((bank_id, query, kwargs))
@@ -69,6 +78,8 @@ class FakeClient:
 
     async def alist_mental_models(self, bank_id: str, **kwargs) -> SimpleNamespace:
         self.list_calls += 1
+        if self.missing_bank:
+            raise BankNotFound(f"Bank '{bank_id}' not found")
         if self.fail:
             raise RuntimeError("server down")
         return SimpleNamespace(
@@ -241,6 +252,33 @@ async def test_recall_respects_flags() -> None:
     assert await memory.async_memory_prompt("anything") == ""
     assert client.recalls == []
     assert client.list_calls == 0
+
+
+async def test_recall_treats_a_missing_bank_as_no_memory(caplog) -> None:
+    """A brand-new agent has no bank yet; that is not a warning.
+
+    The bank only exists after the first successful retain, so every turn
+    before that returned 404 and logged a warning against a server that was
+    working perfectly.
+    """
+    memory, client = make_memory()
+    client.missing_bank = True
+
+    with caplog.at_level("WARNING"):
+        assert await memory.async_recall("what coffee do I like?") == ""
+
+    assert not [record for record in caplog.records if record.levelname == "WARNING"]
+
+
+async def test_mental_models_treat_a_missing_bank_as_no_memory(caplog) -> None:
+    """Same for the mental-model read on a bank that has not been created."""
+    memory, client = make_memory()
+    client.missing_bank = True
+
+    with caplog.at_level("WARNING"):
+        assert await memory.async_mental_models() == ""
+
+    assert not [record for record in caplog.records if record.levelname == "WARNING"]
 
 
 async def test_memory_is_best_effort_on_failure() -> None:
