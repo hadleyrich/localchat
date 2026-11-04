@@ -44,6 +44,23 @@
             "data_description": {
               "server_headers": "Each key-value pair adds a custom HTTP header to API requests"
             }
+          },
+          "hindsight_options": {
+            "name": "Hindsight memory",
+            "description": "Store conversations in a Hindsight bank and recall them on later turns, giving this agent long-term memory",
+            "data": {
+              "hindsight_enabled": "Enable Hindsight memory",
+              "hindsight_base_url": "Hindsight server URL",
+              "hindsight_bank_id": "Memory bank",
+              "hindsight_recall": "Recall relevant memories each turn",
+              "hindsight_mental_models": "Inject mental models"
+            },
+            "data_description": {
+              "hindsight_base_url": "Including protocol and port, e.g. http://homeassistant.local:8888",
+              "hindsight_bank_id": "Leave empty to use '<agent>-userprefs'. Set it to keep using an existing bank.",
+              "hindsight_recall": "Adds a retrieval round trip to every turn",
+              "hindsight_mental_models": "Summaries of the user and of the agent's own personality. Cached, and refreshed by Hindsight after consolidation."
+            }
           }
         }
       },
@@ -88,6 +105,23 @@
             },
             "data_description": {
               "server_headers": "Each key-value pair adds a custom HTTP header to API requests"
+            }
+          },
+          "hindsight_options": {
+            "name": "Hindsight memory",
+            "description": "Store conversations in a Hindsight bank and recall them on later turns, giving this agent long-term memory",
+            "data": {
+              "hindsight_enabled": "Enable Hindsight memory",
+              "hindsight_base_url": "Hindsight server URL",
+              "hindsight_bank_id": "Memory bank",
+              "hindsight_recall": "Recall relevant memories each turn",
+              "hindsight_mental_models": "Inject mental models"
+            },
+            "data_description": {
+              "hindsight_base_url": "Including protocol and port, e.g. http://homeassistant.local:8888",
+              "hindsight_bank_id": "Leave empty to use '<agent>-userprefs'. Set it to keep using an existing bank.",
+              "hindsight_recall": "Adds a retrieval round trip to every turn",
+              "hindsight_mental_models": "Summaries of the user and of the agent's own personality. Cached, and refreshed by Hindsight after consolidation."
             }
           }
         }

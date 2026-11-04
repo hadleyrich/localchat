@@ -45,6 +45,7 @@ from .const import (
     PLACEHOLDER_API_KEY,
     SERVER_TYPE_DEEPSEEK,
 )
+from .hindsight import async_close_memories
 
 PLATFORMS = [Platform.AI_TASK, Platform.CONVERSATION]
 
@@ -229,7 +230,11 @@ async def _async_update_listener(
 
 async def async_unload_entry(hass: HomeAssistant, entry: LocalAiConfigEntry) -> bool:
     """Unload Local OpenAI LLM."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if not await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
+        return False
+
+    await async_close_memories(hass, entry.entry_id)
+    return True
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:

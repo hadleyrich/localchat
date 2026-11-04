@@ -94,6 +94,12 @@ from .const import (
     CONF_DEEPSEEK_CONFIG,
     CONF_GENERIC_CONFIG,
     CONF_GOOGLE_GEMINI_CONFIG,
+    CONF_HINDSIGHT_BANK_ID,
+    CONF_HINDSIGHT_BASE_URL,
+    CONF_HINDSIGHT_ENABLED,
+    CONF_HINDSIGHT_MENTAL_MODELS,
+    CONF_HINDSIGHT_OPTIONS,
+    CONF_HINDSIGHT_RECALL,
     CONF_LLAMACPP_CONFIG,
     CONF_LOCALAI_CONFIG,
     CONF_MAX_MESSAGE_HISTORY,
@@ -442,6 +448,33 @@ class LocalAiConfigFlow(ConfigFlow, domain=DOMAIN):
                                     },
                                 },
                             ),
+                        },
+                    ),
+                    options={"collapsed": True},
+                ),
+                vol.Optional(CONF_HINDSIGHT_OPTIONS): section(
+                    schema=vol.Schema(
+                        schema={
+                            vol.Optional(
+                                CONF_HINDSIGHT_ENABLED,
+                                default=False,
+                            ): bool,
+                            vol.Optional(
+                                CONF_HINDSIGHT_BASE_URL,
+                                default="",
+                            ): str,
+                            vol.Optional(
+                                CONF_HINDSIGHT_BANK_ID,
+                                default="",
+                            ): str,
+                            vol.Optional(
+                                CONF_HINDSIGHT_RECALL,
+                                default=True,
+                            ): bool,
+                            vol.Optional(
+                                CONF_HINDSIGHT_MENTAL_MODELS,
+                                default=True,
+                            ): bool,
                         },
                     ),
                     options={"collapsed": True},

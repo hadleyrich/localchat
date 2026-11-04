@@ -6,18 +6,21 @@
     "intent"
   ],
   "codeowners": [
-    "@skye-harris"
+    "@skye-harris",
+    "@hadleyrich"
   ],
   "config_flow": true,
   "dependencies": [
     "conversation"
   ],
-  "documentation": "https://github.com/skye-harris/hass_local_openai_llm",
+  "documentation": "https://github.com/hadleyrich/localchat",
   "integration_type": "service",
   "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/hadleyrich/localchat/issues",
   "requirements": [
     "openai>=2.21.0",
-    "demoji>=1.1.0"
+    "demoji>=1.1.0",
+    "hindsight-client>=0.6.1"
   ],
-  "version": "1.15.0"
+  "version": "1.16.0"
 }

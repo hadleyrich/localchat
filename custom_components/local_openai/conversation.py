@@ -7,10 +7,12 @@ from typing import TYPE_CHECKING, Literal
 from homeassistant.components import conversation
 from homeassistant.const import CONF_LLM_HASS_API, CONF_PROMPT, MATCH_ALL
 from homeassistant.helpers import llm
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_ALWAYS_CONTINUE_CONVERSATION,
     CONF_ALWAYS_CONTINUE_CONVERSATION_DEFAULT,
+    CONF_CONTENT_INJECTION_METHOD,
     CONF_PARALLEL_TOOL_CALLS,
     CONF_SERVER_TYPE,
     DOMAIN,
@@ -22,6 +24,7 @@ from .const import (
     SERVER_TYPE_VLLM,
 )
 from .entity import LocalAiEntity
+from .hindsight import HindsightMemory, async_get_memory, options_from_data
 from .tools.api import InternalToolApi
 from .tools.stop_talking import StopTalkingTool
 
@@ -31,6 +34,28 @@ if TYPE_CHECKING:
     from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
     from . import LocalAiConfigEntry
+
+MEMORY_INSTRUCTIONS = (
+    "The following information about the user and your own personality comes "
+    "from long-term memory. Treat it as factual and use it when answering "
+    "questions about the user, their preferences or their household."
+)
+
+
+def _extract_history(chat_log: conversation.ChatLog) -> list[dict[str, str]]:
+    """
+    Return the user and assistant turns worth remembering.
+
+    Tool calls and tool results are skipped: Hindsight extracts facts from prose,
+    and tool plumbing is noise that would otherwise be stored as conversation.
+    """
+    history: list[dict[str, str]] = []
+    for content in chat_log.content:
+        if content.role not in ("user", "assistant"):
+            continue
+        if text := (content.content or "").strip():
+            history.append({"role": content.role, "content": text})
+    return history
 
 
 def _get_conversation_entity(
@@ -103,7 +128,7 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
     ) -> conversation.ConversationResult:
         """Process the user input and call the API."""
         options = self.subentry.data
-        system_prompt = options.get(CONF_PROMPT)
+        system_prompt = await self._async_system_prompt(options, user_input.text)
         parallel_tool_calls = options.get(CONF_PARALLEL_TOOL_CALLS, True)
         always_continue_conversation = options.get(
             CONF_ALWAYS_CONTINUE_CONVERSATION, CONF_ALWAYS_CONTINUE_CONVERSATION_DEFAULT
@@ -154,4 +179,81 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
         elif always_continue_conversation:
             chat_log_result.continue_conversation = True
 
+        if not chat_log_result.continue_conversation:
+            self._async_store_conversation(chat_log)
+
         return chat_log_result
+
+    @property
+    def bank_id(self) -> str:
+        """
+        Return the Hindsight bank for this agent.
+
+        A configured bank wins; otherwise fall back to '<entity name>-userprefs'
+        so a bank created by an earlier version of this integration keeps working.
+        """
+        if configured := options_from_data(self.entry.data).bank_id:
+            return configured
+
+        entity_name = (
+            self.entity_id.split(".")[-1] if "." in self.entity_id else self.entity_id
+        )
+        return f"{entity_name}-userprefs"
+
+    @property
+    def _memory(self) -> HindsightMemory | None:
+        """Return the memory helper for this agent, or None when unconfigured."""
+        options = options_from_data(self.entry.data)
+        if not options.usable:
+            return None
+
+        return async_get_memory(
+            self.hass,
+            self.entry.entry_id,
+            options.base_url,
+            self.bank_id,
+            recall_enabled=options.recall,
+            mental_models_enabled=options.mental_models,
+        )
+
+    async def _async_system_prompt(
+        self,
+        options: dict,
+        user_text: str | None,
+    ) -> str | None:
+        """Build the system prompt, including any memory worth injecting."""
+        parts: list[str] = []
+
+        if base_prompt := options.get(CONF_PROMPT):
+            parts.append(base_prompt)
+
+        if (memory := self._memory) and (
+            block := await memory.async_memory_prompt(user_text)
+        ):
+            parts.append(f"{MEMORY_INSTRUCTIONS}\n\n{block}")
+
+        # The date is injected with the user turn when a content injection method
+        # is configured, so only add it to the prompt when it is not.
+        if not options.get(CONF_CONTENT_INJECTION_METHOD):
+            parts.append(f"The current date is: `{dt_util.now():%A %d %B, %Y}`.")
+
+        return "\n\n".join(parts) or None
+
+    def _async_store_conversation(self, chat_log: conversation.ChatLog) -> None:
+        """Hand a finished conversation to Hindsight, off the response path."""
+        memory = self._memory
+        if memory is None:
+            return
+
+        if not (history := _extract_history(chat_log)):
+            return
+
+        self.hass.async_create_task(
+            memory.async_retain(
+                history,
+                conversation_id=chat_log.conversation_id,
+                timestamp=dt_util.now(dt_util.UTC),
+                agent_name=str(getattr(self.subentry, "title", "") or self.entity_id),
+            ),
+            name=f"{DOMAIN} retain {chat_log.conversation_id}",
+        )

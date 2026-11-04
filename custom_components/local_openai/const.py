@@ -119,6 +119,51 @@ CONF_WEAVIATE_DEFAULT_MAX_RESULTS = 2
 CONF_WEAVIATE_DEFAULT_HYBRID_SEARCH_ALPHA = 0.5
 CONF_WEAVIATE_MAX_RESULTS_MAX = 10
 
+CONF_HINDSIGHT_OPTIONS = "hindsight_options"
+CONF_HINDSIGHT_ENABLED = "hindsight_enabled"
+CONF_HINDSIGHT_BASE_URL = "hindsight_base_url"
+CONF_HINDSIGHT_BANK_ID = "hindsight_bank_id"
+CONF_HINDSIGHT_RECALL = "hindsight_recall"
+CONF_HINDSIGHT_MENTAL_MODELS = "hindsight_mental_models"
+
+# Recall runs per utterance, so keep it small: Assist turns are latency sensitive
+DEFAULT_RECALL_MAX_TOKENS = 600
+DEFAULT_RECALL_BUDGET = "low"
+# Mental models only change when Hindsight consolidates, so a cached copy is good
+# enough for voice turns instead of an HTTP round trip per utterance
+DEFAULT_MENTAL_MODEL_TTL_SECONDS = 900
+
+# Stored in the agent's bank on first use. Hindsight refreshes them after
+# consolidation, so they follow the conversation without per-turn work.
+DEFAULT_MENTAL_MODELS = [
+    {
+        "name": "Agent Personality",
+        "source_query": (
+            "Summarize the AI agent's personality and behaviour in a way that can be "
+            "directly used as instructions in a prompt. Describe tone, style, humour, "
+            "problem-solving approach, decision-making tendencies, and interaction "
+            "style. Write as if giving a new AI instance guidance on how this agent "
+            "should speak, think, and respond to users, highlighting notable "
+            "personality traits and recurring patterns in behaviour."
+        ),
+        "tags": ["personality", "behavior", "tone"],
+    },
+    {
+        "name": "User Information",
+        "source_query": (
+            "Summarize the user's habits, interests, priorities, lifestyle patterns, and "
+            "personal preferences in clear, neutral language suitable for inclusion in "
+            "an AI prompt. Describe recurring topics, likes, dislikes, routines, and "
+            "contextual facts about the user. Exclude any preferences related to how an "
+            "assistant should speak, format responses, manage conversation flow, ask "
+            "questions, handle timing, or support text to speech. Do not include "
+            "interaction rules, assistant capabilities, or response strategies."
+        ),
+        "tags": ["preferences", "user"],
+    },
+]
+
+
 RECOMMENDED_CONVERSATION_OPTIONS = {
     CONF_RECOMMENDED: True,
     CONF_LLM_HASS_API: [llm.LLM_API_ASSIST],

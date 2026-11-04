@@ -334,6 +334,31 @@ data:
 response_variable: delivery
 ```
 
+## Hindsight long-term memory
+
+An optional long-term memory layer backed by [Hindsight](https://github.com/nousresearch/hindsight), configured per
+server under **Hindsight memory** in the integration settings. When enabled, each finished conversation is stored in a
+Hindsight bank and the resulting memory is injected into later conversations:
+
+- **Mental models** — slowly changing summaries the agent's bank keeps, defaulting to an *Agent Personality* model and a
+  *User Information* model. These are created on first use and refreshed by Hindsight after it consolidates.
+- **Recall** — per-turn semantic retrieval for the thing being asked about, budgeted small because Assist turns are
+  latency sensitive.
+
+Memory is best effort throughout: if Hindsight is unreachable the conversation continues with no memory rather than
+failing. Recall and mental models can each be turned off, and a fixed **Memory bank** keeps several agents sharing
+memory, or an agent off another agent's.
+
+Conversations are stored as one document per conversation id, with the conversation timestamp and a context line
+describing the channel, so relative dates ("yesterday") resolve correctly and a re-stored conversation replaces its
+previous copy instead of duplicating it. Hindsight performs the extraction; this integration deliberately stores the
+raw transcript rather than a summary of its own.
+
+> **Voice caveat:** the microphone hears the room. Speech-to-text turns include background television and other
+> people's voices, and Hindsight will extract those as facts about the user — no prompt-level instruction overrides a
+> transcript that literally reads `user: I'm Diogo`. Keep a dedicated bank for personal memory, and prune bad facts in
+> Hindsight. Correcting individual memories from Home Assistant is not implemented yet.
+
 ## Experimental: Retrieval Augmented Generation (RAG) with Weaviate
 
 Retrieval Augmented Generation is used to pre-feed your LLM messages with related data to provide contextually relevant
