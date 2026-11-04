@@ -362,6 +362,58 @@ def fake_hass() -> SimpleNamespace:
     return SimpleNamespace(data={}, async_add_executor_job=None)
 
 
+async def test_store_conversation_is_not_gated_on_continuation(
+    fake_hass, monkeypatch
+) -> None:
+    """A reply that invites a follow-up must still be remembered.
+
+    Regression: the store used to run only when ``continue_conversation`` was
+    False, so an agent with "always continue conversation" enabled — the
+    natural setting for voice follow-ups — never retained anything at all.
+    """
+    from custom_components.local_openai import (  # noqa: PLC0415
+        conversation as conversation_module,
+    )
+
+    retained: list[dict] = []
+
+    class RecordingMemory:
+        async def async_retain(self, history, **kwargs) -> None:
+            retained.append({"history": history, **kwargs})
+
+    monkeypatch.setattr(
+        conversation_module.LocalAiConversationEntity,
+        "_memory",
+        property(lambda self: RecordingMemory()),
+    )
+
+    scheduled: list = []
+    fake_hass.async_create_task = lambda coro, **kwargs: scheduled.append(coro)
+
+    entity = object.__new__(conversation_module.LocalAiConversationEntity)
+    entity.hass = fake_hass
+    entity.entry = SimpleNamespace(entry_id="entry-id", data={})
+    entity.subentry = SimpleNamespace(title="Llama: openai/gpt-oss-20b AI Agent")
+
+    chat_log = SimpleNamespace(
+        conversation_id="conv-1",
+        content=[
+            SimpleNamespace(role="user", content="Turn the kitchen light on"),
+            SimpleNamespace(role="assistant", content="Done. Anything else?"),
+        ],
+    )
+
+    entity._async_store_conversation(chat_log)
+
+    assert len(scheduled) == 1, "the turn was not handed to Hindsight"
+    await scheduled[0]
+    assert retained[0]["conversation_id"] == "conv-1"
+    assert [message["content"] for message in retained[0]["history"]] == [
+        "Turn the kitchen light on",
+        "Done. Anything else?",
+    ]
+
+
 def test_config_schema_wires_the_section_through() -> None:
     """The config flow's section validates and maps onto usable options.
 
