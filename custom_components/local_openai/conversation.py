@@ -26,6 +26,7 @@ from .const import (
 from .entity import LocalAiEntity
 from .hindsight import HindsightMemory, async_get_memory, options_from_data
 from .tools.api import InternalToolApi
+from .tools.memory import build_memory_tools
 from .tools.stop_talking import StopTalkingTool
 
 if TYPE_CHECKING:
@@ -160,6 +161,13 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
             ):
                 # Append our stop_talking tool to the existing tooling if tooling APIs were configured
                 chat_log.llm_api.tools.append(StopTalkingTool())
+
+            if (memory := self._memory) is not None and chat_log.llm_api is not None:
+                # Memory belongs to the agent rather than to an optional tool
+                # provider: the bank is ours, so remembering and looking
+                # something up must not depend on which control APIs the user
+                # selected for this agent.
+                chat_log.llm_api.tools.extend(build_memory_tools(memory))
         except conversation.ConverseError as err:
             return err.as_conversation_result()
 
