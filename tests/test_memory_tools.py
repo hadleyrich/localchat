@@ -7,11 +7,13 @@ from typing import Any
 from homeassistant.helpers import llm
 
 from custom_components.local_openai.const import (
+    TOOL_NAME_HOUSE_MANUAL,
     TOOL_NAME_RECALL_MEMORY,
     TOOL_NAME_REMEMBER,
 )
 from custom_components.local_openai.tools.memory import (
     RememberFactTool,
+    SearchHouseManualTool,
     SearchMemoryTool,
     build_memory_tools,
 )
@@ -30,9 +32,11 @@ class FakeMemory:
         """Initialize the fake."""
         self.stored = stored
         self.recalled = recalled
+        self.manual = "### House Manual\nThe porch light is the second switch."
         self.recall_enabled = recall_enabled
         self.remembered: list[str] = []
         self.queries: list[str] = []
+        self.manual_queries: list[str] = []
 
     async def async_remember(self, text: str) -> bool:
         """Record a remembered fact."""
@@ -43,6 +47,11 @@ class FakeMemory:
         """Record a query and return canned memories."""
         self.queries.append(query)
         return self.recalled
+
+    async def async_search_house_manual(self, query: str) -> str:
+        """Record a manual lookup and return canned passages."""
+        self.manual_queries.append(query)
+        return self.manual
 
 
 def make_context() -> llm.LLMContext:
@@ -120,19 +129,42 @@ def test_build_memory_tools_follows_recall_setting() -> None:
     assert [tool.name for tool in both] == [
         TOOL_NAME_REMEMBER,
         TOOL_NAME_RECALL_MEMORY,
+        TOOL_NAME_HOUSE_MANUAL,
     ]
 
     remember_only = build_memory_tools(FakeMemory(recall_enabled=False))
     assert [tool.name for tool in remember_only] == [TOOL_NAME_REMEMBER]
 
 
+async def test_house_manual_tool_returns_passages() -> None:
+    """The manual tool passes the bank's document excerpts through."""
+    memory = FakeMemory()
+    result = await call(SearchHouseManualTool(memory), query="porch light switch")
+
+    assert result.error is False
+    assert "second switch" in str(result.data["manual"])
+    assert memory.manual_queries == ["porch light switch"]
+
+
+async def test_house_manual_tool_handles_an_empty_manual() -> None:
+    """No match is reported, not raised."""
+    memory = FakeMemory()
+    memory.manual = ""
+    result = await call(SearchHouseManualTool(memory), query="the boat")
+
+    assert result.error is False
+    assert str(result.data["manual"]) == ""
+
+
 def test_tools_declare_safe_annotations() -> None:
     """Recall is read-only; neither tool is destructive or reaches outside HA."""
     remember = RememberFactTool(FakeMemory())
     search = SearchMemoryTool(FakeMemory())
+    manual = SearchHouseManualTool(FakeMemory())
 
     assert remember.annotations.read_only is False
     assert search.annotations.read_only is True
-    for tool in (remember, search):
+    assert manual.annotations.read_only is True
+    for tool in (remember, search, manual):
         assert tool.annotations.destructive is False
         assert tool.annotations.open_world is False

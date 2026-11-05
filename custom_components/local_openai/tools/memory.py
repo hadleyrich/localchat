@@ -17,7 +17,9 @@ from homeassistant.helpers import llm
 
 from custom_components.local_openai.const import (
     DOMAIN,
+    HOUSE_MANUAL_PAGE,
     LOGGER,
+    TOOL_NAME_HOUSE_MANUAL,
     TOOL_NAME_RECALL_MEMORY,
     TOOL_NAME_REMEMBER,
 )
@@ -38,6 +40,10 @@ if TYPE_CHECKING:
 
         async def async_recall(self, query: str) -> str:
             """Return memories relevant to a query, formatted for a prompt."""
+            ...
+
+        async def async_search_house_manual(self, query: str) -> str:
+            """Return house manual passages relevant to a query."""
             ...
 
 
@@ -150,9 +156,60 @@ class SearchMemoryTool(llm.Tool):
         return llm.ToolResult(data={"memories": found})
 
 
+class SearchHouseManualTool(llm.Tool):
+    """Consult the long-form house manual the bank maintains about itself."""
+
+    integration = DOMAIN
+    name = TOOL_NAME_HOUSE_MANUAL
+    description = (
+        "Consult the house manual: a document kept about this home covering rooms, "
+        "devices and what they are called, where things live, the weekly rhythm and "
+        "known quirks. Use it for questions about the home itself that the short "
+        "summaries do not answer."
+    )
+    annotations = llm.ToolAnnotations(
+        read_only=True, destructive=False, idempotent=True, open_world=False
+    )
+    parameters = probatio.Schema(
+        {
+            probatio.Required(
+                "query",
+                description="What to look up in the manual, e.g. 'which switch is the porch light'.",
+            ): str,
+        }
+    )
+
+    def __init__(self, memory: MemoryBackend) -> None:
+        """Initialize the tool against one bank."""
+        self._memory = memory
+
+    async def async_call(
+        self,
+        hass: HomeAssistant,
+        tool_input: llm.ToolInput,
+        llm_context: llm.LLMContext,
+    ) -> llm.ToolResult:
+        """Search the house manual."""
+        data = self.parameters(tool_input.tool_args)
+        query = str(data["query"]).strip()
+        if not query:
+            return llm.ToolResult(data={"error": "No query"}, error=True)
+
+        found = await self._memory.async_search_house_manual(query)
+        if not found:
+            return llm.ToolResult(
+                data={
+                    "manual": "",
+                    "note": f"No matching section in the {HOUSE_MANUAL_PAGE}",
+                }
+            )
+        return llm.ToolResult(data={"manual": found})
+
+
 def build_memory_tools(memory: MemoryBackend) -> list[llm.Tool]:
     """Return the memory tools that suit this bank's configuration."""
     tools: list[llm.Tool] = [RememberFactTool(memory)]
     if memory.recall_enabled:
         tools.append(SearchMemoryTool(memory))
+        tools.append(SearchHouseManualTool(memory))
     return tools

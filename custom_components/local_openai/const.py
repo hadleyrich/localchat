@@ -82,6 +82,7 @@ CONF_ALWAYS_CONTINUE_CONVERSATION_DEFAULT = False
 TOOL_NAME_STOP_TALKING = "stop_talking"
 TOOL_NAME_REMEMBER = "remember_fact"
 TOOL_NAME_RECALL_MEMORY = "search_memory"
+TOOL_NAME_HOUSE_MANUAL = "search_house_manual"
 
 CONF_AI_TASK_SUPPORTED_ATTRIBUTES = "supported_attributes"
 CONF_AI_TASK_SUPPORTED_ATTRIBUTE_OPTIONS = {
@@ -137,12 +138,27 @@ DEFAULT_MENTAL_MODEL_TTL_SECONDS = 900
 
 # Stored in the agent's bank on first use. Hindsight refreshes them after
 # consolidation, so they follow the conversation without per-turn work.
+#
 # Mental-model ``tags`` are not labels: they select which memories the model may
 # read. A model scoped to a tag no document carries is starved forever, and it
 # fails silently -- the refresh succeeds, ``last_refreshed_at`` advances, and the
 # content stays empty. Retains are tagged with RETAIN_TAGS, so the models are
 # scoped to that same constant rather than to their own descriptive words.
 RETAIN_TAGS = ("conversation",)
+
+# The knowledge page is the long tail: a document the bank rewrites as it learns,
+# read only when the agent asks for it. The mental models below are short blocks
+# injected on every turn; this is the house manual, so it gets a larger budget.
+HOUSE_MANUAL_PAGE = "House Manual"
+HOUSE_MANUAL_MAX_TOKENS = 1200
+HOUSE_MANUAL_QUERY = (
+    "Describe this home the way a new butler would need it on their first morning: "
+    "the rooms and what each is used for, the devices and what the household calls "
+    "them, where everyday things live, the weekly rhythm, and any quirks or standing "
+    "arrangements. Write a short, practical document. Include only what the household "
+    "has actually said; never invent devices or rooms, and never include current "
+    "readings or device states."
+)
 
 # Every model is injected into the prompt on every turn, so each one has a token
 # ceiling. Delta refreshes edit the existing content instead of regenerating it,

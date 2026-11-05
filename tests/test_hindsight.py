@@ -26,6 +26,8 @@ from custom_components.local_openai.const import (
     DEFAULT_MENTAL_MODEL_MAX_TOKENS,
     DEFAULT_MENTAL_MODEL_TRIGGER,
     DEFAULT_MENTAL_MODELS,
+    HOUSE_MANUAL_MAX_TOKENS,
+    HOUSE_MANUAL_PAGE,
     RETAIN_TAGS,
 )
 from custom_components.local_openai.hindsight import (
@@ -68,6 +70,9 @@ class FakeClient:
         self.created: list[str] = []
         self.created_kwargs: list[dict] = []
         self.updated: list[tuple[str, dict]] = []
+        self.knowledge_nodes: list[dict] = []
+        self.pages: list[dict] = []
+        self.manual_queries: list[str] = []
         self.list_calls = 0
         self.closed = False
         self.fail = False
@@ -115,6 +120,35 @@ class FakeClient:
             raise RuntimeError("server down")
         self.created.append(name)
         self.created_kwargs.append({"name": name, **kwargs})
+
+    async def aget_knowledge_base_tree(self, bank_id: str, **kwargs) -> SimpleNamespace:
+        if self.fail:
+            raise RuntimeError("server down")
+        return {"roots": list(self.knowledge_nodes)}
+
+    async def acreate_knowledge_page(
+        self, bank_id: str, name: str, source_query: str, **kwargs
+    ) -> SimpleNamespace:
+        if self.fail:
+            raise RuntimeError("server down")
+        self.pages.append({"name": name, "source_query": source_query, **kwargs})
+        return SimpleNamespace(page_id="kp-1", mental_model_id="mm-1")
+
+    async def asearch_knowledge_base(
+        self, bank_id: str, q: str, **kwargs
+    ) -> SimpleNamespace:
+        if self.fail:
+            raise RuntimeError("server down")
+        self.manual_queries.append(q)
+        return {
+            "results": [
+                {
+                    "name": "House Manual",
+                    "snippet": "The porch light is the second switch by the door.",
+                },
+                {"name": "House Manual", "snippet": "   "},
+            ]
+        }
 
     async def aupdate_mental_model(self, bank_id: str, model_id: str, **kwargs) -> None:
         if self.fail:
@@ -739,3 +773,46 @@ async def test_recall_deduplicates_world_facts_and_observations() -> None:
 
     assert recalled.count("bins go out") == 1
     assert "Recycling is collected fortnightly" in recalled
+
+
+async def test_ensure_house_manual_creates_the_page_once() -> None:
+    """The manual is created on a bank that has none, and only once."""
+    memory, client = make_memory()
+
+    await memory.async_ensure_house_manual()
+    await memory.async_ensure_house_manual()
+
+    assert [page["name"] for page in client.pages] == [HOUSE_MANUAL_PAGE]
+    page = client.pages[0]
+    assert page["tags"] == list(RETAIN_TAGS)
+    assert page["max_tokens"] == HOUSE_MANUAL_MAX_TOKENS
+    assert page["trigger"]["mode"] == "delta"
+
+
+async def test_ensure_house_manual_leaves_an_existing_page_alone() -> None:
+    """A bank that already has the page is not written to again."""
+    memory, client = make_memory()
+    client.knowledge_nodes = [{"id": "kp-1", "name": HOUSE_MANUAL_PAGE, "kind": "page"}]
+
+    await memory.async_ensure_house_manual()
+
+    assert client.pages == []
+
+
+async def test_house_manual_search_formats_passages() -> None:
+    """Passages are returned with their heading and blank rows dropped."""
+    memory, client = make_memory()
+
+    found = await memory.async_search_house_manual("porch light")
+
+    assert found.startswith("### House Manual")
+    assert "second switch" in found
+    assert client.manual_queries == ["porch light"]
+
+
+async def test_house_manual_search_is_best_effort() -> None:
+    """An unreachable server yields no passages rather than an exception."""
+    memory, client = make_memory()
+    client.fail = True
+
+    assert await memory.async_search_house_manual("porch light") == ""
