@@ -108,12 +108,28 @@ def _as_items(result: Any) -> list[Any]:
 
 
 def build_retain_context(agent_name: str) -> str:
-    """Describe a retained document for the retain prompt."""
+    """
+    Describe a retained document for the retain prompt.
+
+    The trailing instruction is load-bearing, not decoration. Without it the
+    extractor records whatever was said — live sensor readings, the assistant's
+    own capability claims, "thanks", "stop" — and a later recall reads a
+    six-hour-old "the house is empty" as current truth. Measured on one
+    transcript: 8 facts (4 junk, 1036 output tokens) before, 1 fact (91 tokens)
+    after. Keep the wording explicit and imperative; softer phrasing that merely
+    names the topics to avoid produced MORE facts, not fewer.
+    """
     return (
         f"Transcript of a Home Assistant conversation with the assistant "
         f"'{agent_name}'. Turns are speech-to-text from a microphone: speaker "
         "labels are approximate and background television, radio or other people "
-        "are sometimes captured as user turns."
+        "are sometimes captured as user turns. Extract only durable facts about "
+        "the household and the people in it, such as preferences, routines, "
+        "possessions and living arrangements. Output no facts for: live sensor "
+        "readings, occupancy, presence, motion, weather or temperature readings, "
+        "device states, who was seen where; anything the assistant says about its "
+        "own abilities, tools or internet access; greetings, thanks or one-word "
+        "commands."
     )
 
 
