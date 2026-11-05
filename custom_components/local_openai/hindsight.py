@@ -31,6 +31,8 @@ from .const import (
     CONF_HINDSIGHT_MENTAL_MODELS,
     CONF_HINDSIGHT_OPTIONS,
     CONF_HINDSIGHT_RECALL,
+    DEFAULT_MENTAL_MODEL_MAX_TOKENS,
+    DEFAULT_MENTAL_MODEL_TRIGGER,
     DEFAULT_MENTAL_MODEL_TTL_SECONDS,
     DEFAULT_MENTAL_MODELS,
     DEFAULT_RECALL_BUDGET,
@@ -142,6 +144,50 @@ def format_transcript(history: Iterable[Mapping[str, Any]]) -> str:
         if msg.get("role") in ("user", "assistant")
         and (content := str(msg.get("content") or "").strip())
     )
+
+
+def _max_tokens(definition: Mapping[str, Any]) -> int:
+    """Token ceiling for one mental model's generated content."""
+    return int(definition.get("max_tokens") or DEFAULT_MENTAL_MODEL_MAX_TOKENS)
+
+
+def _mental_model_changes(
+    definition: Mapping[str, Any], current: Any
+) -> dict[str, Any]:
+    """
+    Return the ``aupdate_mental_model`` kwargs that bring a stored model in line.
+
+    Banks keep models created by older versions of this integration: scoped to
+    tags nothing carries, refreshing in full instead of delta, with no token
+    ceiling. Creation is name-checked, so without reconciliation those models
+    would never pick up a fix.
+
+    Attributes the server does not return are left alone rather than assumed
+    wrong, so an older server cannot turn this into a write on every start.
+    """
+    changes: dict[str, Any] = {}
+
+    stored_tokens = getattr(current, "max_tokens", None)
+    wanted_tokens = _max_tokens(definition)
+    if stored_tokens is not None and stored_tokens != wanted_tokens:
+        changes["max_tokens"] = wanted_tokens
+
+    stored_query = getattr(current, "source_query", None)
+    if stored_query is not None and stored_query != definition["source_query"]:
+        changes["source_query"] = definition["source_query"]
+
+    stored_tags = getattr(current, "tags", None)
+    wanted_tags = list(definition.get("tags", []))
+    if stored_tags is not None and list(stored_tags) != wanted_tags:
+        changes["tags"] = wanted_tags
+
+    stored_trigger = getattr(current, "trigger", None)
+    if isinstance(stored_trigger, dict):
+        merged = {**stored_trigger, **DEFAULT_MENTAL_MODEL_TRIGGER}
+        if merged != stored_trigger:
+            changes["trigger"] = merged
+
+    return changes
 
 
 @dataclass(frozen=True, slots=True)
@@ -453,38 +499,70 @@ class HindsightMemory:
 
         try:
             result = await client.alist_mental_models(self.bank_id)
-            existing = {getattr(item, "name", "") for item in _as_items(result)}
+            existing = {
+                getattr(item, "name", ""): item for item in _as_items(result)
+            }
         except Exception as err:
             LOGGER.debug(
                 "Bank %s not readable yet (%s), creating models", self.bank_id, err
             )
-            existing = set()
+            existing = {}
 
         failures = 0
         for definition in DEFAULT_MENTAL_MODELS:
-            if definition["name"] in existing:
+            item = existing.get(definition["name"])
+            if item is None:
+                try:
+                    await client.acreate_mental_model(
+                        self.bank_id,
+                        name=definition["name"],
+                        source_query=definition["source_query"],
+                        tags=definition.get("tags", []),
+                        max_tokens=_max_tokens(definition),
+                        trigger=dict(DEFAULT_MENTAL_MODEL_TRIGGER),
+                    )
+                except Exception as err:
+                    failures += 1
+                    LOGGER.warning(
+                        "Could not create mental model '%s' in %s: %s",
+                        definition["name"],
+                        self.bank_id,
+                        err,
+                    )
+                else:
+                    LOGGER.info(
+                        "Created mental model '%s' in bank %s",
+                        definition["name"],
+                        self.bank_id,
+                    )
+                continue
+
+            # An existing model may predate the current definition -- wrong scope,
+            # a full refresh instead of delta, no token ceiling. Reconcile it, or
+            # the fix only ever reaches banks that have never been used.
+            model_id = getattr(item, "id", None)
+            if not model_id:
                 continue
             try:
-                await client.acreate_mental_model(
-                    self.bank_id,
-                    name=definition["name"],
-                    source_query=definition["source_query"],
-                    tags=definition.get("tags", []),
-                    trigger={"refresh_after_consolidation": True},
-                )
+                current = await client.aget_mental_model(self.bank_id, model_id)
+                changes = _mental_model_changes(definition, current)
+                if changes:
+                    await client.aupdate_mental_model(
+                        self.bank_id, model_id, **changes
+                    )
+                    LOGGER.info(
+                        "Updated mental model '%s' in bank %s (%s)",
+                        definition["name"],
+                        self.bank_id,
+                        ", ".join(sorted(changes)),
+                    )
             except Exception as err:
                 failures += 1
                 LOGGER.warning(
-                    "Could not create mental model '%s' in %s: %s",
+                    "Could not reconcile mental model '%s' in %s: %s",
                     definition["name"],
                     self.bank_id,
                     err,
-                )
-            else:
-                LOGGER.info(
-                    "Created mental model '%s' in bank %s",
-                    definition["name"],
-                    self.bank_id,
                 )
 
         if not failures:
