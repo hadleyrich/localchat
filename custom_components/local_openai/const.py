@@ -146,6 +146,11 @@ DEFAULT_MENTAL_MODEL_TTL_SECONDS = 900
 # scoped to that same constant rather than to their own descriptive words.
 RETAIN_TAGS = ("conversation",)
 
+# Prefix for the tag that records who was speaking. Retains carry it alongside
+# RETAIN_TAGS, so a model can be scoped to one person without losing the shared
+# view: a household is not one "user".
+USER_TAG_PREFIX = "user:"
+
 # The knowledge page is the long tail: a document the bank rewrites as it learns,
 # read only when the agent asks for it. The mental models below are short blocks
 # injected on every turn; this is the house manual, so it gets a larger budget.
@@ -168,6 +173,9 @@ DEFAULT_MENTAL_MODEL_MAX_TOKENS = 400
 DEFAULT_MENTAL_MODEL_TRIGGER = {
     "refresh_after_consolidation": True,
     "mode": "delta",
+    # "all" requires the model's tags but still admits untagged memories, so a
+    # second client writing to this bank without our tag is not invisible.
+    "tags_match": "all",
 }
 
 DEFAULT_MENTAL_MODELS = [

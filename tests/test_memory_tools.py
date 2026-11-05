@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from homeassistant.core import Context
 from homeassistant.helpers import llm
 
 from custom_components.local_openai.const import (
@@ -35,12 +36,14 @@ class FakeMemory:
         self.manual = "### House Manual\nThe porch light is the second switch."
         self.recall_enabled = recall_enabled
         self.remembered: list[str] = []
+        self.remembered_by: list[str | None] = []
         self.queries: list[str] = []
         self.manual_queries: list[str] = []
 
-    async def async_remember(self, text: str) -> bool:
-        """Record a remembered fact."""
+    async def async_remember(self, text: str, user_id: str | None = None) -> bool:
+        """Record a remembered fact and who asked for it."""
         self.remembered.append(text)
+        self.remembered_by.append(user_id)
         return self.stored
 
     async def async_recall(self, query: str) -> str:
@@ -54,11 +57,11 @@ class FakeMemory:
         return self.manual
 
 
-def make_context() -> llm.LLMContext:
-    """Return a minimal LLM context for a tool call."""
+def make_context(user_id: str | None = None) -> llm.LLMContext:
+    """Return a minimal LLM context for a tool call, optionally with a speaker."""
     return llm.LLMContext(
         platform="test",
-        context=None,
+        context=Context(user_id=user_id) if user_id else None,
         language="en",
         assistant="conversation",
         device_id=None,
@@ -72,6 +75,22 @@ async def call(tool: llm.Tool, **tool_args: Any) -> llm.ToolResult:
     return await tool.async_call(  # type: ignore[arg-type]
         hass=None, tool_input=tool_input, llm_context=make_context()
     )
+
+
+async def test_remember_tool_records_the_speaker() -> None:
+    """The remembered fact carries who said it, so it can be scoped later."""
+    memory = FakeMemory()
+    tool_input = llm.ToolInput(
+        tool_name=TOOL_NAME_REMEMBER, tool_args={"fact": "I take my coffee black"}
+    )
+    await RememberFactTool(memory).async_call(  # type: ignore[arg-type]
+        hass=None,
+        tool_input=tool_input,
+        llm_context=make_context("user-abc"),
+    )
+
+    assert memory.remembered == ["I take my coffee black"]
+    assert memory.remembered_by == ["user-abc"]
 
 
 async def test_remember_tool_stores_the_fact() -> None:
