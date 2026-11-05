@@ -37,6 +37,7 @@ from .const import (
     DEFAULT_RECALL_MAX_TOKENS,
     DOMAIN,
     LOGGER,
+    RETAIN_TAGS,
 )
 
 if TYPE_CHECKING:
@@ -398,7 +399,7 @@ class HindsightMemory:
                 timestamp=timestamp,
                 document_id=conversation_id,
                 update_mode="replace",
-                tags=["conversation"],
+                tags=list(RETAIN_TAGS),
             )
         except Exception as err:
             LOGGER.warning("Could not store conversation in %s: %s", self.base_url, err)
