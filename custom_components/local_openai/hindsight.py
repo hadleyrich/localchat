@@ -402,11 +402,16 @@ class HindsightMemory:
             return ""
 
         self._recall_warmed = True
-        lines = [
-            f"- {text}"
-            for item in _as_items(result)
-            if (text := _text_of(item).strip())
-        ]
+        # The same fact is often stored as both a world fact and the observation
+        # derived from it, so an undeduplicated list repeats itself in the prompt.
+        seen: set[str] = set()
+        lines = []
+        for item in _as_items(result):
+            text = _text_of(item).strip()
+            if not text or text in seen:
+                continue
+            seen.add(text)
+            lines.append(f"- {text}")
         LOGGER.debug(
             "Recalled %s memories from bank %s for: %s",
             len(lines),
@@ -479,6 +484,42 @@ class HindsightMemory:
         # default mental models now rather than racing bank creation on first use.
         await self.async_ensure_mental_models()
 
+    async def async_remember(self, text: str) -> bool:
+        """
+        Store one deliberate fact, separate from a conversation transcript.
+
+        Used by the remember tool, where the user has asked for something to be
+        kept rather than it being inferred from a whole conversation. Returns
+        whether it was stored; memory is best effort and never raises.
+
+        The mental-model and recall caches are dropped because the new fact may
+        change both, and a stale summary would outlive the fact that changed it.
+        """
+        fact = " ".join(str(text).split())
+        if not fact:
+            return False
+
+        try:
+            client = await self._async_client()
+            await client.aretain(
+                bank_id=self.bank_id,
+                content=fact,
+                context=(
+                    "A fact the user explicitly asked the assistant to remember. "
+                    "Store it as stated; do not add detail that was not given."
+                ),
+                tags=list(RETAIN_TAGS),
+                update_mode="append",
+            )
+        except Exception as err:
+            LOGGER.warning("Could not remember a fact in %s: %s", self.base_url, err)
+            return False
+
+        self._mental_models = ""
+        self._mental_models_at = None
+        self._recall_cache.clear()
+        return True
+
     async def async_ensure_mental_models(self) -> None:
         """
         Create the default mental models in the bank if they are missing.
@@ -499,9 +540,7 @@ class HindsightMemory:
 
         try:
             result = await client.alist_mental_models(self.bank_id)
-            existing = {
-                getattr(item, "name", ""): item for item in _as_items(result)
-            }
+            existing = {getattr(item, "name", ""): item for item in _as_items(result)}
         except Exception as err:
             LOGGER.debug(
                 "Bank %s not readable yet (%s), creating models", self.bank_id, err
@@ -547,9 +586,7 @@ class HindsightMemory:
                 current = await client.aget_mental_model(self.bank_id, model_id)
                 changes = _mental_model_changes(definition, current)
                 if changes:
-                    await client.aupdate_mental_model(
-                        self.bank_id, model_id, **changes
-                    )
+                    await client.aupdate_mental_model(self.bank_id, model_id, **changes)
                     LOGGER.info(
                         "Updated mental model '%s' in bank %s (%s)",
                         definition["name"],
