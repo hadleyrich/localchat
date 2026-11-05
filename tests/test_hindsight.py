@@ -70,6 +70,8 @@ class FakeClient:
         self.created: list[str] = []
         self.created_kwargs: list[dict] = []
         self.updated: list[tuple[str, dict]] = []
+        self.deleted: list[str] = []
+        self.extra_models: list[SimpleNamespace] = []
         self.knowledge_nodes: list[dict] = []
         self.pages: list[dict] = []
         self.manual_queries: list[str] = []
@@ -115,7 +117,8 @@ class FakeClient:
             items=[
                 SimpleNamespace(
                     id="mm-user", name="User Information", content="Lives in Timaru"
-                )
+                ),
+                *self.extra_models,
             ]
         )
 
@@ -161,6 +164,11 @@ class FakeClient:
         if self.fail:
             raise RuntimeError("server down")
         self.updated.append((model_id, kwargs))
+
+    async def adelete_mental_model(self, bank_id: str, model_id: str) -> None:
+        if self.fail:
+            raise RuntimeError("server down")
+        self.deleted.append(model_id)
 
     async def aclose(self) -> None:
         self.closed = True
@@ -214,6 +222,12 @@ def test_retain_context_excludes_ephemeral_state_and_capability_claims() -> None
         assert capability in context
     for filler in ("greetings", "thanks", "one-word commands"):
         assert filler in context
+    # A refusal is the assistant's own fault, not a fact about the household.
+    # Left in, "Assistant declined to provide a joke" is extracted and a later
+    # personality summary reads it back as character ("you respectfully decline"),
+    # which the agent then reproduces.
+    assert "declined" in context
+    assert "could not do" in context
 
 
 def test_options_default_to_disabled() -> None:
@@ -519,6 +533,29 @@ def test_mental_models_are_scoped_to_the_tags_we_actually_retain() -> None:
     """
     for definition in DEFAULT_MENTAL_MODELS:
         assert definition["tags"] == list(RETAIN_TAGS), definition["name"]
+
+
+async def test_a_retired_mental_model_is_deleted_not_left_injecting() -> None:
+    """A renamed model must not survive under its old name.
+
+    Reconcile is name-keyed, so renaming "Interaction Preferences" to "Agent
+    Personality" creates the new model and leaves the old one injecting an
+    invented rulebook into every turn. Retirement deletes it explicitly.
+    """
+    memory, client = make_memory()
+    client.extra_models = [
+        SimpleNamespace(
+            id="mm-old",
+            name="Interaction Preferences",
+            content="You prefer the assistant to avoid casual humour.",
+        )
+    ]
+
+    await memory.async_ensure_mental_models()
+
+    assert client.deleted == ["mm-old"]
+    assert "Interaction Preferences" not in client.created
+    assert "Agent Personality" in client.created
 
 
 async def test_mental_models_get_a_token_ceiling_and_delta_refresh() -> None:

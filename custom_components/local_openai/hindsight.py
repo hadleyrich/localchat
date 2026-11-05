@@ -44,6 +44,7 @@ from .const import (
     HOUSE_MANUAL_QUERY,
     LOGGER,
     RETAIN_TAGS,
+    RETIRED_MENTAL_MODELS,
     USER_TAG_PREFIX,
 )
 
@@ -200,8 +201,9 @@ def build_retain_context(agent_name: str) -> str:
         "possessions and living arrangements. Output no facts for: live sensor "
         "readings, occupancy, presence, motion, weather or temperature readings, "
         "device states, who was seen where; anything the assistant says about its "
-        "own abilities, tools or internet access; greetings, thanks or one-word "
-        "commands."
+        "own abilities, tools or internet access, and anything it declined or said "
+        "it could not do (a refusal is a fault to correct, never a fact about the "
+        "household); greetings, thanks or one-word commands."
     )
 
 
@@ -621,6 +623,30 @@ class HindsightMemory:
             existing = {}
 
         failures = 0
+
+        # Retire models this integration no longer defines before creating the
+        # current ones. Renaming a model is otherwise a silent doubling: the new
+        # name is created, and the old model keeps injecting its content.
+        for name in RETIRED_MENTAL_MODELS:
+            item = existing.pop(name, None)
+            model_id = getattr(item, "id", None) if item is not None else None
+            if not model_id:
+                continue
+            try:
+                await client.adelete_mental_model(self.bank_id, model_id)
+            except Exception as err:
+                failures += 1
+                LOGGER.warning(
+                    "Could not delete retired mental model '%s' in %s: %s",
+                    name,
+                    self.bank_id,
+                    err,
+                )
+            else:
+                LOGGER.info(
+                    "Deleted retired mental model '%s' in bank %s", name, self.bank_id
+                )
+
         for definition in DEFAULT_MENTAL_MODELS:
             item = existing.get(definition["name"])
             if item is None:
