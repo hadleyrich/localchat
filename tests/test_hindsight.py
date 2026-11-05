@@ -23,6 +23,8 @@ from custom_components.local_openai.const import (
     CONF_HINDSIGHT_MENTAL_MODELS,
     CONF_HINDSIGHT_OPTIONS,
     CONF_HINDSIGHT_RECALL,
+    DEFAULT_MENTAL_MODELS,
+    RETAIN_TAGS,
 )
 from custom_components.local_openai.hindsight import (
     HindsightMemory,
@@ -441,8 +443,21 @@ async def test_ensure_mental_models_creates_only_missing_ones() -> None:
     await memory.async_ensure_mental_models()
     await memory.async_ensure_mental_models()
 
-    assert client.created == ["Agent Personality"]
+    assert client.created == ["Interaction Preferences"]
     assert client.list_calls == 1
+
+
+def test_mental_models_are_scoped_to_the_tags_we_actually_retain() -> None:
+    """A model scoped to a tag no document carries can never see a source.
+
+    Hindsight treats a mental model's tags as a scope filter over memory tags.
+    Both shipped models once declared their own descriptive tags ("preferences",
+    "user", "personality", "behavior", "tone") while retains only ever carried
+    "conversation", so every refresh returned "no_sources_in_scope" and the
+    content stayed empty -- silently, with last_refreshed_at still advancing.
+    """
+    for definition in DEFAULT_MENTAL_MODELS:
+        assert definition["tags"] == list(RETAIN_TAGS), definition["name"]
 
 
 async def test_ensure_mental_models_survives_an_unreachable_server() -> None:
@@ -466,7 +481,7 @@ async def test_failed_ensure_is_retried() -> None:
     client.fail = False
     await memory.async_ensure_mental_models()
 
-    assert client.created == ["Agent Personality"]
+    assert client.created == ["Interaction Preferences"]
 
 
 async def test_retain_creates_mental_models_once_the_bank_exists() -> None:
@@ -479,7 +494,7 @@ async def test_retain_creates_mental_models_once_the_bank_exists() -> None:
         timestamp=datetime(2026, 11, 5, tzinfo=timezone.utc),
         agent_name="Agent",
     )
-    assert client.created == ["Agent Personality"]
+    assert client.created == ["Interaction Preferences"]
 
     await memory.async_retain(
         HISTORY,
@@ -487,7 +502,7 @@ async def test_retain_creates_mental_models_once_the_bank_exists() -> None:
         timestamp=datetime(2026, 11, 5, tzinfo=timezone.utc),
         agent_name="Agent",
     )
-    assert client.created == ["Agent Personality"]
+    assert client.created == ["Interaction Preferences"]
 
 
 async def test_close_closes_the_client() -> None:

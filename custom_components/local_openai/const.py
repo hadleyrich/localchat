@@ -135,18 +135,26 @@ DEFAULT_MENTAL_MODEL_TTL_SECONDS = 900
 
 # Stored in the agent's bank on first use. Hindsight refreshes them after
 # consolidation, so they follow the conversation without per-turn work.
+# Mental-model ``tags`` are not labels: they select which memories the model may
+# read. A model scoped to a tag no document carries is starved forever, and it
+# fails silently -- the refresh succeeds, ``last_refreshed_at`` advances, and the
+# content stays empty. Retains are tagged with RETAIN_TAGS, so the models are
+# scoped to that same constant rather than to their own descriptive words.
+RETAIN_TAGS = ("conversation",)
+
 DEFAULT_MENTAL_MODELS = [
     {
-        "name": "Agent Personality",
+        "name": "Interaction Preferences",
         "source_query": (
-            "Summarize the AI agent's personality and behaviour in a way that can be "
-            "directly used as instructions in a prompt. Describe tone, style, humour, "
-            "problem-solving approach, decision-making tendencies, and interaction "
-            "style. Write as if giving a new AI instance guidance on how this agent "
-            "should speak, think, and respond to users, highlighting notable "
-            "personality traits and recurring patterns in behaviour."
+            "Summarize how the user has asked the assistant to behave, in the "
+            "user's own terms: things they asked it to stop doing, words or "
+            "phrases they dislike, and requests about tone, humour, length or "
+            "level of detail. Report only preferences the user actually stated. "
+            "Do not infer traits from the assistant's own behaviour, and do not "
+            "invent generalisations. Write short second-person instructions, each "
+            "traceable to something the user said."
         ),
-        "tags": ["personality", "behavior", "tone"],
+        "tags": list(RETAIN_TAGS),
     },
     {
         "name": "User Information",
@@ -159,7 +167,7 @@ DEFAULT_MENTAL_MODELS = [
             "questions, handle timing, or support text to speech. Do not include "
             "interaction rules, assistant capabilities, or response strategies."
         ),
-        "tags": ["preferences", "user"],
+        "tags": list(RETAIN_TAGS),
     },
 ]
 
