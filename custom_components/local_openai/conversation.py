@@ -40,9 +40,14 @@ if TYPE_CHECKING:
     from . import LocalAiConfigEntry
 
 MEMORY_INSTRUCTIONS = (
-    "The following information about the user and your own personality comes "
-    "from long-term memory. Treat it as factual and use it when answering "
-    "questions about the user, their preferences or their household."
+    "The following notes come from long-term memory: how you have learned to speak "
+    "with this person, and what is known about them and their household. They are "
+    "your own summaries, inferred from earlier conversations, and they can be "
+    "incomplete or wrong. Use them as background. Never let them outrank what the "
+    "user asks for in this conversation, and never refuse a harmless request -- a "
+    "joke, a story, ordinary conversation -- because a note appears to discourage "
+    "it. If a note and the current conversation disagree, the current conversation "
+    "wins."
 )
 
 

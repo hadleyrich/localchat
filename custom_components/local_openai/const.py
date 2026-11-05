@@ -203,16 +203,18 @@ DEFAULT_MENTAL_MODELS = [
         "tags": list(RETAIN_TAGS),
     },
     {
-        "name": "Interaction Preferences",
+        "name": "Agent Personality",
         "source_query": (
-            "Summarize how the user has asked the assistant to behave, in the "
-            "user's own terms: things they asked it to stop doing, words or "
-            "phrases they dislike, and requests about tone, humour, length or "
-            "level of detail. Report only preferences the user actually stated. "
-            "Do not infer traits from the assistant's own behaviour, and do not "
-            "invent generalisations. Write short second-person instructions, each "
-            "traceable to something the user said. Never state what is missing or "
-            "describe the records. If nothing is known, output nothing."
+            "Describe the assistant's own manner and voice, as guidance for a new "
+            "instance of it: warmth, pace, how much it says, how it handles a joke or "
+            "a tangent, and what the person it talks to responds well to. Address the "
+            "assistant as 'you', so the text reads as who it is rather than as a task "
+            "list. Base every line on what has actually happened in this household's "
+            "conversations and on what the user asked for. Do not report the "
+            "assistant's own refusals, limitations or capability claims as character "
+            "traits, do not write a prohibition on what the user may ask for, do not "
+            "turn a single exchange into a standing rule, and never state what is "
+            "missing. If nothing has been observed, output nothing."
         ),
         "tags": list(RETAIN_TAGS),
     },
@@ -246,6 +248,17 @@ DEFAULT_MENTAL_MODELS = [
         "tags": list(RETAIN_TAGS),
     },
 ]
+
+# Models this integration used to create and no longer wants. Reconcile is
+# name-keyed, so a renamed model is otherwise created under its new name while
+# the old one keeps injecting its content into every turn forever.
+#
+# "Interaction Preferences" asked for the *user's* preferences and told the model
+# to write second-person instructions, which turned an inferred observation into
+# an order the agent obeyed over a live request ("I'm not able to do that" to
+# "tell me a joke"). "Agent Personality" asks for the assistant's own manner
+# instead, and says plainly not to turn its refusals into character.
+RETIRED_MENTAL_MODELS = ("Interaction Preferences",)
 
 
 RECOMMENDED_CONVERSATION_OPTIONS = {
