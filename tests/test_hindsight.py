@@ -686,3 +686,56 @@ def test_config_schema_wires_the_section_through() -> None:
     assert options.bank_id == "llama_cpp-userprefs"
     assert options.recall is True
     assert options.mental_models is True
+
+
+async def test_remember_retains_a_deliberate_fact() -> None:
+    """A fact the user asked for is stored on its own, tagged like a transcript.
+
+    Tagging it with RETAIN_TAGS matters: the mental models are scoped to that
+    tag, so an untagged fact would be invisible to every one of them.
+    """
+    memory, client = make_memory()
+
+    assert await memory.async_remember("  The   bins go out on Tuesday  ") is True
+
+    assert client.retained[-1]["content"] == "The bins go out on Tuesday"
+    assert client.retained[-1]["tags"] == list(RETAIN_TAGS)
+    assert client.retained[-1]["update_mode"] == "append"
+
+
+async def test_remember_of_nothing_is_not_stored() -> None:
+    """Whitespace is not a fact and does not reach the bank."""
+    memory, client = make_memory()
+
+    assert await memory.async_remember("   ") is False
+    assert client.retained == []
+
+
+async def test_remember_failure_is_reported_not_raised() -> None:
+    """Memory stays best effort: a write failure is a False, not an exception."""
+    memory, client = make_memory()
+    client.fail = True
+
+    assert await memory.async_remember("The bins go out on Tuesday") is False
+
+
+async def test_recall_deduplicates_world_facts_and_observations() -> None:
+    """The same fact arrives as a world fact and the observation built from it."""
+    memory, client = make_memory()
+
+    async def arecall(bank_id: str, query: str, **kwargs) -> SimpleNamespace:
+        return SimpleNamespace(
+            results=[
+                SimpleNamespace(text="The bins go out on Tuesday nights"),
+                SimpleNamespace(text="The bins go out on Tuesday nights"),
+                SimpleNamespace(text="   "),
+                SimpleNamespace(text="Recycling is collected fortnightly"),
+            ]
+        )
+
+    client.arecall = arecall
+
+    recalled = await memory.async_recall("bins")
+
+    assert recalled.count("bins go out") == 1
+    assert "Recycling is collected fortnightly" in recalled
