@@ -17,6 +17,7 @@ the same conversation idempotent instead of appending a duplicate.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import time
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
@@ -118,6 +119,21 @@ def _as_items(result: Any) -> list[Any]:
         if value is not None:
             return list(value)
     return list(result) if isinstance(result, (list, tuple)) else []
+
+
+def _remembered_document_id(fact: str, user_id: str | None = None) -> str:
+    """
+    Return the document id for one deliberately remembered fact.
+
+    ``update_mode="append"`` is rejected without a document id ("update_mode=
+    'append' requires a document_id"), so a remembered fact needs a document of
+    its own. Deriving the id from the text makes re-stating the same fact a
+    replace of the same document instead of a second copy, and scoping it to the
+    speaker keeps two people's identical wording apart.
+    """
+    digest = hashlib.sha256(fact.casefold().encode()).hexdigest()[:16]
+    speaker = f"-{user_id[:8]}" if user_id else ""
+    return f"remembered{speaker}-{digest}"
 
 
 def _retain_tags(user_id: str | None = None) -> list[str]:
@@ -565,7 +581,8 @@ class HindsightMemory:
                     "Store it as stated; do not add detail that was not given."
                 ),
                 tags=_retain_tags(user_id),
-                update_mode="append",
+                document_id=_remembered_document_id(fact, user_id),
+                update_mode="replace",
             )
         except Exception as err:
             LOGGER.warning("Could not remember a fact in %s: %s", self.base_url, err)
