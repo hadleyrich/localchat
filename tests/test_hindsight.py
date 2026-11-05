@@ -81,6 +81,13 @@ class FakeClient:
     async def aretain(self, **kwargs) -> SimpleNamespace:
         if self.fail:
             raise RuntimeError("server down")
+        # Mirrors the server: update_mode="append" is rejected without a
+        # document id. The fake used to accept anything, which let a payload
+        # the real server refuses ship as a green test.
+        if kwargs.get("update_mode") == "append" and not kwargs.get("document_id"):
+            raise RuntimeError(
+                "400 Bad Request: update_mode='append' requires a document_id"
+            )
         self.retained.append(kwargs)
         return SimpleNamespace(success=True)
 
@@ -734,7 +741,8 @@ async def test_remember_retains_a_deliberate_fact() -> None:
 
     assert client.retained[-1]["content"] == "The bins go out on Tuesday"
     assert client.retained[-1]["tags"] == list(RETAIN_TAGS)
-    assert client.retained[-1]["update_mode"] == "append"
+    assert client.retained[-1]["update_mode"] == "replace"
+    assert client.retained[-1]["document_id"]
 
 
 async def test_remember_of_nothing_is_not_stored() -> None:
@@ -850,3 +858,89 @@ def test_existing_models_pick_up_the_full_refresh_schedule() -> None:
 
     assert changes["trigger"]["full_refresh_cron"] == "0 14 * * 6"
     assert changes["trigger"]["mode"] == "delta"
+
+
+async def test_retain_records_the_speaker() -> None:
+    """A signed-in speaker is tagged, so a per-person model can be scoped."""
+    memory, client = make_memory()
+
+    await memory.async_retain(
+        [{"role": "user", "content": "I take my coffee black"}],
+        conversation_id="conv-1",
+        timestamp=datetime(2026, 11, 5, tzinfo=timezone.utc),
+        agent_name="Jarvis",
+        user_id="user-abc",
+    )
+
+    assert client.retained[-1]["tags"] == ["conversation", "user:user-abc"]
+
+
+async def test_retain_without_a_speaker_keeps_one_tag() -> None:
+    """No user id means the shared tag only — never an empty 'user:' tag."""
+    memory, client = make_memory()
+
+    await memory.async_retain(
+        [{"role": "user", "content": "The bins go out on Tuesday"}],
+        conversation_id="conv-2",
+        timestamp=datetime(2026, 11, 5, tzinfo=timezone.utc),
+        agent_name="Jarvis",
+    )
+
+    assert client.retained[-1]["tags"] == ["conversation"]
+
+
+async def test_remember_records_the_speaker() -> None:
+    """A deliberate remember is attributed like any other retain."""
+    memory, client = make_memory()
+
+    await memory.async_remember("I take my coffee black", user_id="user-abc")
+
+    assert client.retained[-1]["tags"] == ["conversation", "user:user-abc"]
+
+
+def test_models_admit_untagged_memories() -> None:
+    """tags_match 'all' keeps a second writer's untagged facts visible."""
+    assert DEFAULT_MENTAL_MODEL_TRIGGER["tags_match"] == "all"
+    for definition in DEFAULT_MENTAL_MODELS:
+        assert "tags_match" not in definition, definition["name"]
+
+
+async def test_remember_uses_a_document_id_and_replaces() -> None:
+    """
+    A remembered fact needs its own document.
+
+    The server rejects append without one ("update_mode='append' requires a
+    document_id"), which is why the remember tool reported failure while the
+    conversation retain quietly stored the fact anyway.
+    """
+    memory, client = make_memory()
+
+    await memory.async_remember("Connor was born on 1 August 2009")
+
+    call = client.retained[-1]
+    assert call["document_id"].startswith("remembered-")
+    assert call["update_mode"] == "replace"
+
+
+async def test_remembering_the_same_fact_twice_reuses_the_document() -> None:
+    """Re-stating a fact replaces its document instead of adding a second copy."""
+    memory, client = make_memory()
+
+    await memory.async_remember("Connor was born on 1 August 2009")
+    await memory.async_remember("connor was BORN on 1 august 2009")
+    await memory.async_remember("Mia was born on 9 January 2012")
+
+    first, second, third = (call["document_id"] for call in client.retained)
+    assert first == second
+    assert third != first
+
+
+async def test_remembered_documents_are_per_speaker() -> None:
+    """Two people stating the same sentence do not share one document."""
+    memory, client = make_memory()
+
+    await memory.async_remember("The bins go out on Tuesday", user_id="user-aaaaaaaa")
+    await memory.async_remember("The bins go out on Tuesday", user_id="user-bbbbbbbb")
+
+    first, second = (call["document_id"] for call in client.retained)
+    assert first != second

@@ -30,6 +30,9 @@ from .tools.memory import build_memory_tools
 from .tools.stop_talking import StopTalkingTool
 
 if TYPE_CHECKING:
+    from homeassistant.core import Context
+
+if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigSubentry
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -192,7 +195,7 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
         # and gating on it would mean an agent configured that way never
         # remembers anything. Re-storing the same conversation replaces its
         # document, and the server retains only the delta.
-        self._async_store_conversation(chat_log)
+        self._async_store_conversation(chat_log, user_input.context)
 
         return chat_log_result
 
@@ -251,8 +254,16 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
 
         return "\n\n".join(parts) or None
 
-    def _async_store_conversation(self, chat_log: conversation.ChatLog) -> None:
-        """Hand a finished conversation to Hindsight, off the response path."""
+    def _async_store_conversation(
+        self, chat_log: conversation.ChatLog, context: Context | None = None
+    ) -> None:
+        """
+        Hand a finished conversation to Hindsight, off the response path.
+
+        The speaker is recorded as a tag so a per-person mental model can read
+        only that person's memories; without it every preference in a household
+        is attributed to an undifferentiated "the user".
+        """
         memory = self._memory
         if memory is None:
             return
@@ -266,6 +277,7 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
                 conversation_id=chat_log.conversation_id,
                 timestamp=dt_util.now(dt_util.UTC),
                 agent_name=str(getattr(self.subentry, "title", "") or self.entity_id),
+                user_id=getattr(context, "user_id", None),
             ),
             name=f"{DOMAIN} retain {chat_log.conversation_id}",
         )

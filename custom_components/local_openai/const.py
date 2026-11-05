@@ -146,6 +146,11 @@ DEFAULT_MENTAL_MODEL_TTL_SECONDS = 900
 # scoped to that same constant rather than to their own descriptive words.
 RETAIN_TAGS = ("conversation",)
 
+# Prefix for the tag that records who was speaking. Retains carry it alongside
+# RETAIN_TAGS, so a model can be scoped to one person without losing the shared
+# view: a household is not one "user".
+USER_TAG_PREFIX = "user:"
+
 # The knowledge page is the long tail: a document the bank rewrites as it learns,
 # read only when the agent asks for it. The mental models below are short blocks
 # injected on every turn; this is the house manual, so it gets a larger budget.
@@ -168,6 +173,9 @@ DEFAULT_MENTAL_MODEL_MAX_TOKENS = 400
 DEFAULT_MENTAL_MODEL_TRIGGER = {
     "refresh_after_consolidation": True,
     "mode": "delta",
+    # "all" requires the model's tags but still admits untagged memories, so a
+    # second client writing to this bank without our tag is not invisible.
+    "tags_match": "all",
     # Delta edits accumulate duplicates: measured over six delta refreshes, one
     # person appeared three times because a richer bullet was added rather than
     # replacing the existing one, and the stale copy was never retired. A
@@ -187,7 +195,10 @@ DEFAULT_MENTAL_MODELS = [
             "contextual facts about the user. Exclude any preferences related to how an "
             "assistant should speak, format responses, manage conversation flow, ask "
             "questions, handle timing, or support text to speech. Do not include "
-            "interaction rules, assistant capabilities, or response strategies."
+            "interaction rules, assistant capabilities, or response strategies. Write the "
+            "facts themselves as a short list. Never state what is missing, never "
+            "describe the records or their coverage, and never mention sources. If "
+            "nothing is known, output nothing."
         ),
         "tags": list(RETAIN_TAGS),
     },
@@ -200,7 +211,8 @@ DEFAULT_MENTAL_MODELS = [
             "level of detail. Report only preferences the user actually stated. "
             "Do not infer traits from the assistant's own behaviour, and do not "
             "invent generalisations. Write short second-person instructions, each "
-            "traceable to something the user said."
+            "traceable to something the user said. Never state what is missing or "
+            "describe the records. If nothing is known, output nothing."
         ),
         "tags": list(RETAIN_TAGS),
     },
@@ -211,7 +223,10 @@ DEFAULT_MENTAL_MODELS = [
             "what the user calls each one ('the big lamp', 'the back door'). Include any "
             "quirks or problems the user has mentioned about the house or its devices. "
             "Report only what the user said; do not infer devices from requests, and do "
-            "not include current readings or device states."
+            "not include current readings or device states. Write the facts "
+            "themselves as a short list. Never state what is missing, never "
+            "describe the records or their coverage, and never say what a reader "
+            "would or would not find. If nothing is known, output nothing."
         ),
         "tags": list(RETAIN_TAGS),
     },
@@ -222,7 +237,11 @@ DEFAULT_MENTAL_MODELS = [
             "relationships, birthdays -- and the recurring shape of their week: wake and "
             "sleep times, work patterns, regular commitments and events. Include only "
             "durable facts that recur; omit one-off visits and anything that was only "
-            "true for a moment."
+            "true for a moment. Write the facts themselves as a short list, "
+            "naming each person and what is known about them. Never state what is "
+            "missing or that records are incomplete, and never describe the "
+            "sources; a gap it announces reads as knowledge it does not have. If "
+            "nothing is known, output nothing."
         ),
         "tags": list(RETAIN_TAGS),
     },
