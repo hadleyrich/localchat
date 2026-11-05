@@ -826,6 +826,40 @@ async def test_house_manual_search_is_best_effort() -> None:
     assert await memory.async_search_house_manual("porch light") == ""
 
 
+def test_models_get_a_periodic_full_refresh() -> None:
+    """
+    Delta refreshes clean nothing up, so they need a periodic full rewrite.
+
+    Measured: six delta refreshes left one person listed three times, and the
+    model stopped picking up new facts. A full refresh deduped it back to one
+    entry each but is also where the model rewrites prose from scratch, so it
+    belongs on a schedule rather than on every consolidation.
+    """
+    fields = DEFAULT_MENTAL_MODEL_TRIGGER["full_refresh_cron"].split()
+    assert len(fields) == 5, DEFAULT_MENTAL_MODEL_TRIGGER["full_refresh_cron"]
+    assert DEFAULT_MENTAL_MODEL_TRIGGER["mode"] == "delta"
+
+
+def test_existing_models_pick_up_the_full_refresh_schedule() -> None:
+    """A bank holding these models gets the schedule through reconciliation."""
+    current = SimpleNamespace(
+        max_tokens=400,
+        source_query="query",
+        tags=list(RETAIN_TAGS),
+        trigger={"refresh_after_consolidation": True, "mode": "delta"},
+    )
+    definition = {
+        "name": "User Information",
+        "source_query": "query",
+        "tags": list(RETAIN_TAGS),
+    }
+
+    changes = _mental_model_changes(definition, current)
+
+    assert changes["trigger"]["full_refresh_cron"] == "0 14 * * 6"
+    assert changes["trigger"]["mode"] == "delta"
+
+
 async def test_retain_records_the_speaker() -> None:
     """A signed-in speaker is tagged, so a per-person model can be scoped."""
     memory, client = make_memory()

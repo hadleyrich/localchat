@@ -176,6 +176,13 @@ DEFAULT_MENTAL_MODEL_TRIGGER = {
     # "all" requires the model's tags but still admits untagged memories, so a
     # second client writing to this bank without our tag is not invisible.
     "tags_match": "all",
+    # Delta edits accumulate duplicates: measured over six delta refreshes, one
+    # person appeared three times because a richer bullet was added rather than
+    # replacing the existing one, and the stale copy was never retired. A
+    # scheduled full refresh regenerates from scratch to clear that drift, and
+    # is skipped when nothing has changed. The server reads cron in UTC, so this
+    # is Sunday 03:00 in New Zealand (UTC+13).
+    "full_refresh_cron": "0 14 * * 6",
 }
 
 DEFAULT_MENTAL_MODELS = [
