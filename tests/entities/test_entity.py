@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import AsyncGenerator
 from copy import deepcopy
@@ -30,7 +31,11 @@ from openai.types.chat.chat_completion_chunk import (
     ChoiceDeltaToolCall,
     ChoiceDeltaToolCallFunction,
 )
-from openai.types.completion_usage import CompletionUsage
+from openai.types.completion_usage import (
+    CompletionTokensDetails,
+    CompletionUsage,
+    PromptTokensDetails,
+)
 
 
 class MockContent(conversation.AssistantContent):
@@ -882,6 +887,89 @@ class TestGenerationEventEmission:
         assert data["token_metadata"]["time_to_first_token_ms"] is not None
         assert data["token_metadata"]["time_to_first_token_ms"] >= 0
         assert data["tools_called"] == []
+
+    async def test_event_payload_is_json_serialisable(
+        self,
+        hass: HomeAssistant,
+        mock_conversation_entity: conversation.ConversationAgent,
+    ):
+        """Test token detail models are expanded so the event data is serialisable."""
+        entity = mock_conversation_entity
+
+        captured_events: list[dict] = []
+
+        def capture_event(event):
+            captured_events.append(event.data)
+
+        entity.hass.bus.async_listen(
+            "local_openai_llm_generation_complete", capture_event
+        )
+
+        chunk = ChatCompletionChunk(
+            id="test",
+            created=0,
+            model="test-model",
+            object="chat.completion.chunk",
+            choices=[
+                Choice(
+                    index=0,
+                    delta=ChoiceDelta(content="hi", role="assistant"),
+                    finish_reason="stop",
+                )
+            ],
+            usage=CompletionUsage(
+                prompt_tokens=100,
+                completion_tokens=50,
+                total_tokens=150,
+                completion_tokens_details=CompletionTokensDetails(
+                    reasoning_tokens=11,
+                    accepted_prediction_tokens=0,
+                    rejected_prediction_tokens=0,
+                ),
+                prompt_tokens_details=PromptTokensDetails(cached_tokens=64),
+            ),
+        )
+
+        mock_stream = MagicMock()
+
+        async def async_gen():
+            yield chunk
+
+        mock_stream.__aiter__ = MagicMock(return_value=async_gen())
+        entity.entry.runtime_data.chat.completions.create = AsyncMock(
+            return_value=mock_stream
+        )
+
+        async def stream_content(
+            entity_id, stream_gen
+        ) -> AsyncGenerator[MockContent, None]:
+            async for delta in stream_gen:
+                yield MockContent(content=delta.get("content", ""))
+
+        chat_log = MagicMock(spec=conversation.ChatLog)
+        chat_log.async_add_delta_content_stream = stream_content
+        chat_log.unresponded_tool_results = []
+        chat_log.content = []
+
+        model_args = {"model": "test-model", "messages": []}
+        chat_log.content.append(MockContent(content="hi"))
+
+        await entity._run_agent_loop(
+            entity.entry.runtime_data,
+            model_args,
+            chat_log,
+            context=AgentContext(conversation_id="conv-123"),
+        )
+
+        await hass.async_block_till_done()
+
+        assert len(captured_events) == 1
+        data = captured_events[0]
+        # The recorder drops event data it cannot serialise, so this must not raise.
+        json.dumps(data)
+        details = data["token_metadata"]["completion_tokens_details"]
+        assert details["reasoning_tokens"] == 11
+        assert data["token_metadata"]["prompt_tokens_details"]["cached_tokens"] == 64
 
     async def test_multi_iteration_event_fires_per_iteration(
         self,

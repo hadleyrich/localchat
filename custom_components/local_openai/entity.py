@@ -208,6 +208,17 @@ def _make_uuid(identifier: str) -> str:
     return str(uuid.uuid5(namespace=uuid.NAMESPACE_OID, name=identifier))
 
 
+def _jsonable(value: Any) -> Any:
+    """Return a JSON-serialisable copy of a value, expanding pydantic models."""
+    if hasattr(value, "model_dump"):
+        return value.model_dump(mode="json")
+    if isinstance(value, dict):
+        return {key: _jsonable(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_jsonable(item) for item in value]
+    return value
+
+
 class LocalAiEntity(Entity):
     """Base entity for Open Router."""
 
@@ -961,19 +972,21 @@ class LocalAiEntity(Entity):
 
                 self.hass.bus.async_fire(
                     "local_openai_llm_generation_complete",
-                    {
-                        "entity_id": self.entity_id,
-                        "type": "generation_complete",
-                        "model": model_args["model"],
-                        "iteration": iteration + 1,
-                        "conversation_id": context.conversation_id,
-                        "content": content_text,
-                        "tools_called": meta.tool_names or [],
-                        "token_metadata": {
-                            **(usage_dict or timings_dict),
-                            "time_to_first_token_ms": meta.time_to_first_token,
-                        },
-                    },
+                    _jsonable(
+                        {
+                            "entity_id": self.entity_id,
+                            "type": "generation_complete",
+                            "model": model_args["model"],
+                            "iteration": iteration + 1,
+                            "conversation_id": context.conversation_id,
+                            "content": content_text,
+                            "tools_called": meta.tool_names or [],
+                            "token_metadata": {
+                                **(usage_dict or timings_dict),
+                                "time_to_first_token_ms": meta.time_to_first_token,
+                            },
+                        }
+                    ),
                 )
 
             except openai.OpenAIError as err:
