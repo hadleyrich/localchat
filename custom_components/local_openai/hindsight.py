@@ -54,8 +54,28 @@ USER_AGENT = "local-openai-llm"
 WRITE_TIMEOUT_SECONDS = 300.0
 
 # Recall and mental models sit on the conversation path, so they get their own
-# short bound instead of inheriting the generous write timeout.
+# short bound instead of inheriting the generous write timeout. Recall sits in
+# front of the first token that reaches the speaker, so a server that is slow to
+# answer is abandoned rather than allowed to stall the reply.
 READ_TIMEOUT_SECONDS = 10.0
+RECALL_TIMEOUT_SECONDS = 2.0
+
+# The first recall after start-up also pays for building the client's TLS
+# context on the event loop, which measured ~1.6s on top of a ~400ms server
+# answer, so the steady-state budget would discard memory on the first turn.
+FIRST_RECALL_TIMEOUT_SECONDS = 10.0
+
+# A voice assistant repeats itself ("turn on the kitchen light"), and most of a
+# recall's cost is the server reranking candidates, so an identical recent query
+# is answered from memory. The cache is cleared whenever a conversation is
+# stored, so it can never serve facts the just-finished turn invalidated.
+RECALL_CACHE_TTL_SECONDS = 60.0
+RECALL_CACHE_MAX_ENTRIES = 32
+
+
+async def _no_memory() -> str:
+    """Stand-in coroutine so both memory lookups can be gathered."""
+    return ""
 
 
 def _create_client(base_url: str) -> Hindsight:
@@ -190,6 +210,8 @@ class HindsightMemory:
         self._mental_models: str = ""
         self._mental_models_at: float | None = None
         self._mental_models_ensured = False
+        self._recall_cache: dict[str, tuple[float, str]] = {}
+        self._recall_warmed = False
 
     async def _async_client(self) -> Hindsight:
         """Return the shared client, creating it on first use."""
@@ -211,16 +233,18 @@ class HindsightMemory:
         """
         sections: list[str] = []
 
-        if self.mental_models_enabled and (
-            mental_models := await self.async_mental_models()
-        ):
+        # Both lookups hit the same server and neither depends on the other, so
+        # fetch them together: the mental-model read is usually a few
+        # milliseconds, but it should not be serialised in front of recall.
+        mental_models, recalled = await asyncio.gather(
+            self.async_mental_models() if self.mental_models_enabled else _no_memory(),
+            self.async_recall(query) if self.recall_enabled and query else _no_memory(),
+        )
+
+        if mental_models:
             sections.append(mental_models)
 
-        if (
-            self.recall_enabled
-            and query
-            and (recalled := await self.async_recall(query))
-        ):
+        if recalled:
             sections.append(f"## Possibly relevant memories\n{recalled}")
 
         return "\n\n".join(sections)
@@ -280,8 +304,20 @@ class HindsightMemory:
 
     async def async_recall(self, query: str) -> str:
         """Return memories relevant to ``query``, formatted for a prompt."""
+        cache_key = " ".join(query.lower().split())
+        if (cached := self._cached_recall(cache_key)) is not None:
+            LOGGER.debug(
+                "Recall cache hit in bank %s for: %s", self.bank_id, query[:80]
+            )
+            return cached
+
         try:
             client = await self._async_client()
+            recall_timeout = (
+                RECALL_TIMEOUT_SECONDS
+                if self._recall_warmed
+                else FIRST_RECALL_TIMEOUT_SECONDS
+            )
             result = await asyncio.wait_for(
                 client.arecall(
                     self.bank_id,
@@ -289,7 +325,7 @@ class HindsightMemory:
                     max_tokens=self.recall_max_tokens,
                     budget=self.recall_budget,
                 ),
-                READ_TIMEOUT_SECONDS,
+                recall_timeout,
             )
         except Exception as err:
             if _is_missing_bank(err):
@@ -302,6 +338,7 @@ class HindsightMemory:
             LOGGER.warning("Could not recall from %s: %s", self.base_url, err)
             return ""
 
+        self._recall_warmed = True
         lines = [
             f"- {text}"
             for item in _as_items(result)
@@ -313,7 +350,30 @@ class HindsightMemory:
             self.bank_id,
             query[:80],
         )
-        return "\n".join(lines)
+        recalled = "\n".join(lines)
+        self._store_recall(cache_key, recalled)
+        return recalled
+
+    def _cached_recall(self, cache_key: str) -> str | None:
+        """Return a recent recall of this exact query, if it is still fresh."""
+        entry = self._recall_cache.get(cache_key)
+        if entry is None:
+            return None
+
+        stored_at, recalled = entry
+        if time.monotonic() - stored_at > RECALL_CACHE_TTL_SECONDS:
+            self._recall_cache.pop(cache_key, None)
+            return None
+
+        return recalled
+
+    def _store_recall(self, cache_key: str, recalled: str) -> None:
+        """Remember this recall briefly, dropping the oldest entry when full."""
+        if len(self._recall_cache) >= RECALL_CACHE_MAX_ENTRIES:
+            oldest = min(self._recall_cache, key=lambda key: self._recall_cache[key][0])
+            self._recall_cache.pop(oldest, None)
+
+        self._recall_cache[cache_key] = (time.monotonic(), recalled)
 
     async def async_retain(
         self,
@@ -347,8 +407,10 @@ class HindsightMemory:
         LOGGER.debug("Stored conversation %s in bank %s", conversation_id, self.bank_id)
 
         # Mental models refresh after consolidation, so drop the cached copy
-        # and let the next turn pick up whatever changed.
+        # and let the next turn pick up whatever changed. Cached recalls are
+        # dropped for the same reason: this conversation may invalidate them.
         self._mental_models_at = None
+        self._recall_cache.clear()
 
         # The retain above created the bank if it did not exist, so create the
         # default mental models now rather than racing bank creation on first use.

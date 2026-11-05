@@ -294,16 +294,93 @@ def test_client_timeout_outlasts_server_side_extraction() -> None:
 
 
 async def test_recall_gives_up_quickly_on_a_slow_server(monkeypatch) -> None:
-    """Reads sit on the conversation path, so they must not inherit the write timeout."""
+    """Recall sits in front of the first token, so it must not inherit the write timeout."""
     memory, client = make_memory()
 
     async def slow_recall(*args: object, **kwargs: object) -> None:
         await asyncio.sleep(1)
 
     monkeypatch.setattr(client, "arecall", slow_recall)
-    monkeypatch.setattr(hindsight, "READ_TIMEOUT_SECONDS", 0.05)
+    monkeypatch.setattr(hindsight, "RECALL_TIMEOUT_SECONDS", 0.05)
 
     assert await memory.async_recall("what coffee do I like?") == ""
+
+
+async def test_repeated_query_is_answered_from_cache() -> None:
+    """A voice assistant repeats itself; an identical recent query costs no round trip.
+
+    Most of a recall's latency is server-side reranking, so this is the
+    difference between ~300ms and nothing on a repeated command.
+    """
+    memory, client = make_memory()
+
+    first = await memory.async_recall("Turn on the kitchen light")
+    second = await memory.async_recall("turn on the  kitchen LIGHT")
+
+    assert first == second
+    assert len(client.recalls) == 1
+
+
+async def test_storing_a_conversation_drops_cached_recalls() -> None:
+    """A finished turn can invalidate what was recalled, so the cache is cleared."""
+    memory, client = make_memory()
+    when = datetime(2026, 11, 5, 3, 0, tzinfo=timezone.utc)
+
+    await memory.async_recall("what coffee do I like?")
+    await memory.async_retain(
+        HISTORY,
+        conversation_id="01KMPFR4YY6XNW8SV3Y0BJ4RR8",
+        timestamp=when,
+        agent_name="Kitchen Agent",
+    )
+    await memory.async_recall("what coffee do I like?")
+
+    assert len(client.recalls) == 2
+
+
+async def test_memory_prompt_fetches_both_lookups() -> None:
+    """Mental models and recall are gathered together, not serialised."""
+    memory, client = make_memory()
+
+    block = await memory.async_memory_prompt("Turn on the kitchen light")
+
+    assert client.list_calls == 1
+    assert len(client.recalls) == 1
+    assert "Possibly relevant memories" in block
+
+
+async def test_memory_prompt_can_run_with_recall_disabled() -> None:
+    """Recall can be switched off without also losing the mental models."""
+    memory, client = make_memory(recall_enabled=False)
+
+    block = await memory.async_memory_prompt("Turn on the kitchen light")
+
+    assert client.list_calls == 1
+    assert client.recalls == []
+    assert "Possibly relevant memories" not in block
+
+
+async def test_first_recall_gets_the_longer_budget(monkeypatch) -> None:
+    """A cold start pays TLS setup on the event loop, so the first call gets slack.
+
+    Measured: ~1.6s of client set-up on the first request on top of a ~400ms
+    server answer. Applying the steady-state 2s budget there discarded memory
+    on the very first turn.
+    """
+    memory, client = make_memory()
+
+    async def slow_recall(*args: object, **kwargs: object) -> SimpleNamespace:
+        await asyncio.sleep(0.2)
+        return SimpleNamespace(results=[SimpleNamespace(text="something")])
+
+    monkeypatch.setattr(client, "arecall", slow_recall)
+    monkeypatch.setattr(hindsight, "RECALL_TIMEOUT_SECONDS", 0.05)
+    monkeypatch.setattr(hindsight, "FIRST_RECALL_TIMEOUT_SECONDS", 1.0)
+
+    assert await memory.async_recall("Turn on the kitchen light") == "- something"
+
+    # Now warmed, the tight budget applies and the same call is abandoned.
+    assert await memory.async_recall("Turn off the kitchen light") == ""
 
 
 async def test_memory_is_best_effort_on_failure() -> None:
