@@ -38,6 +38,9 @@ from .const import (
     DEFAULT_RECALL_BUDGET,
     DEFAULT_RECALL_MAX_TOKENS,
     DOMAIN,
+    HOUSE_MANUAL_MAX_TOKENS,
+    HOUSE_MANUAL_PAGE,
+    HOUSE_MANUAL_QUERY,
     LOGGER,
     RETAIN_TAGS,
 )
@@ -96,18 +99,53 @@ def _text_of(value: Any) -> str:
 
 
 def _as_items(result: Any) -> list[Any]:
-    """Normalise a client list/recall response into a list of items."""
-    for attr in ("items", "results"):
-        value = getattr(result, attr, None)
-        if value is not None:
-            return list(value)
+    """
+    Normalise a client list/recall response into a list of items.
+
+    The dict branch must come first: a dict has an ``items`` attribute that is
+    the builtin method, so probing attributes before the type would try to
+    iterate a bound method.
+    """
     if isinstance(result, dict):
-        for key in ("items", "results"):
+        for key in ("items", "results", "roots"):
             value = result.get(key)
             if value is not None:
                 return list(value)
         return []
+    for attr in ("items", "results"):
+        value = getattr(result, attr, None)
+        if value is not None:
+            return list(value)
     return list(result) if isinstance(result, (list, tuple)) else []
+
+
+def _field(item: Any, name: str) -> str:
+    """Return one string field from a result that may be an object or a dict."""
+    value = item.get(name) if isinstance(item, dict) else getattr(item, name, None)
+    return str(value) if value else ""
+
+
+def _knowledge_names(tree: Any) -> set[str]:
+    """Return every node name in a knowledge-base tree, at any depth."""
+    names: set[str] = set()
+
+    def walk(nodes: Any) -> None:
+        for node in _as_items(nodes):
+            if name := _field(node, "name"):
+                names.add(name)
+            children = (
+                node.get("children")
+                if isinstance(node, dict)
+                else getattr(node, "children", None)
+            )
+            if children:
+                walk(children)
+
+    roots = (
+        tree.get("roots") if isinstance(tree, dict) else getattr(tree, "roots", tree)
+    )
+    walk(roots)
+    return names
 
 
 def build_retain_context(agent_name: str) -> str:
@@ -273,6 +311,7 @@ class HindsightMemory:
         self._mental_models: str = ""
         self._mental_models_at: float | None = None
         self._mental_models_ensured = False
+        self._house_manual_ensured = False
         self._recall_cache: dict[str, tuple[float, str]] = {}
         self._recall_warmed = False
 
@@ -483,6 +522,7 @@ class HindsightMemory:
         # The retain above created the bank if it did not exist, so create the
         # default mental models now rather than racing bank creation on first use.
         await self.async_ensure_mental_models()
+        await self.async_ensure_house_manual()
 
     async def async_remember(self, text: str) -> bool:
         """
@@ -604,6 +644,70 @@ class HindsightMemory:
 
         if not failures:
             self._mental_models_ensured = True
+
+    async def async_ensure_house_manual(self) -> None:
+        """
+        Create the House Manual knowledge page if the bank has none.
+
+        A knowledge page is a mental model with better defaults: written from
+        observations, refreshed incrementally, and given a larger budget because
+        it is a document rather than an answer. It is deliberately not injected
+        per turn -- the four mental models are the hot path, and this is the long
+        tail the agent reads only when a question needs it.
+        """
+        if self._house_manual_ensured:
+            return
+
+        try:
+            client = await self._async_client()
+            tree = await client.aget_knowledge_base_tree(self.bank_id)
+            if HOUSE_MANUAL_PAGE in _knowledge_names(tree):
+                self._house_manual_ensured = True
+                return
+
+            await client.acreate_knowledge_page(
+                self.bank_id,
+                name=HOUSE_MANUAL_PAGE,
+                source_query=HOUSE_MANUAL_QUERY,
+                tags=list(RETAIN_TAGS),
+                max_tokens=HOUSE_MANUAL_MAX_TOKENS,
+                trigger=dict(DEFAULT_MENTAL_MODEL_TRIGGER),
+            )
+        except Exception as err:
+            LOGGER.warning(
+                "Could not create the house manual in %s: %s", self.base_url, err
+            )
+            return
+
+        LOGGER.info("Created the '%s' page in bank %s", HOUSE_MANUAL_PAGE, self.bank_id)
+        self._house_manual_ensured = True
+
+    async def async_search_house_manual(self, query: str) -> str:
+        """Return the house manual passages relevant to a query."""
+        try:
+            client = await self._async_client()
+            result = await asyncio.wait_for(
+                client.asearch_knowledge_base(self.bank_id, query, limit=2),
+                READ_TIMEOUT_SECONDS,
+            )
+        except Exception as err:
+            if _is_missing_bank(err):
+                return ""
+            LOGGER.warning("Could not search the house manual: %s", err)
+            return ""
+
+        passages: list[str] = []
+        for item in _as_items(result):
+            body = (
+                _field(item, "snippet")
+                or _field(item, "markdown")
+                or _field(item, "content")
+                or _field(item, "body")
+            )
+            if body:
+                name = _field(item, "name") or HOUSE_MANUAL_PAGE
+                passages.append(f"### {name}\n{body.strip()}")
+        return "\n\n".join(passages)
 
     async def async_close(self) -> None:
         """Close the underlying client."""
