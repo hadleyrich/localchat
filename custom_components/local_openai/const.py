@@ -142,7 +142,30 @@ DEFAULT_MENTAL_MODEL_TTL_SECONDS = 900
 # scoped to that same constant rather than to their own descriptive words.
 RETAIN_TAGS = ("conversation",)
 
+# Every model is injected into the prompt on every turn, so each one has a token
+# ceiling. Delta refreshes edit the existing content instead of regenerating it,
+# which is what makes a cheap gate possible: with a decision model configured the
+# server can skip the LLM call entirely when no new memory could change the model.
+DEFAULT_MENTAL_MODEL_MAX_TOKENS = 400
+DEFAULT_MENTAL_MODEL_TRIGGER = {
+    "refresh_after_consolidation": True,
+    "mode": "delta",
+}
+
 DEFAULT_MENTAL_MODELS = [
+    {
+        "name": "User Information",
+        "source_query": (
+            "Summarize the user's habits, interests, priorities, lifestyle patterns, and "
+            "personal preferences in clear, neutral language suitable for inclusion in "
+            "an AI prompt. Describe recurring topics, likes, dislikes, routines, and "
+            "contextual facts about the user. Exclude any preferences related to how an "
+            "assistant should speak, format responses, manage conversation flow, ask "
+            "questions, handle timing, or support text to speech. Do not include "
+            "interaction rules, assistant capabilities, or response strategies."
+        ),
+        "tags": list(RETAIN_TAGS),
+    },
     {
         "name": "Interaction Preferences",
         "source_query": (
@@ -157,15 +180,24 @@ DEFAULT_MENTAL_MODELS = [
         "tags": list(RETAIN_TAGS),
     },
     {
-        "name": "User Information",
+        "name": "Household & Devices",
         "source_query": (
-            "Summarize the user's habits, interests, priorities, lifestyle patterns, and "
-            "personal preferences in clear, neutral language suitable for inclusion in "
-            "an AI prompt. Describe recurring topics, likes, dislikes, routines, and "
-            "contextual facts about the user. Exclude any preferences related to how an "
-            "assistant should speak, format responses, manage conversation flow, ask "
-            "questions, handle timing, or support text to speech. Do not include "
-            "interaction rules, assistant capabilities, or response strategies."
+            "Summarize the home itself: its rooms and areas, the devices in them, and "
+            "what the user calls each one ('the big lamp', 'the back door'). Include any "
+            "quirks or problems the user has mentioned about the house or its devices. "
+            "Report only what the user said; do not infer devices from requests, and do "
+            "not include current readings or device states."
+        ),
+        "tags": list(RETAIN_TAGS),
+    },
+    {
+        "name": "People & Routines",
+        "source_query": (
+            "Summarize the people in the user's household and life -- first names, "
+            "relationships, birthdays -- and the recurring shape of their week: wake and "
+            "sleep times, work patterns, regular commitments and events. Include only "
+            "durable facts that recur; omit one-off visits and anything that was only "
+            "true for a moment."
         ),
         "tags": list(RETAIN_TAGS),
     },

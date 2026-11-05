@@ -23,15 +23,27 @@ from custom_components.local_openai.const import (
     CONF_HINDSIGHT_MENTAL_MODELS,
     CONF_HINDSIGHT_OPTIONS,
     CONF_HINDSIGHT_RECALL,
+    DEFAULT_MENTAL_MODEL_MAX_TOKENS,
+    DEFAULT_MENTAL_MODEL_TRIGGER,
     DEFAULT_MENTAL_MODELS,
     RETAIN_TAGS,
 )
 from custom_components.local_openai.hindsight import (
     HindsightMemory,
+    _mental_model_changes,
     build_retain_context,
     format_transcript,
     options_from_data,
 )
+
+# The fake client reports "User Information" as already present, so the other
+# shipped models are the ones a fresh ensure is expected to create.
+EXPECTED_CREATED = [
+    definition["name"]
+    for definition in DEFAULT_MENTAL_MODELS
+    if definition["name"] != "User Information"
+]
+
 
 HISTORY = [
     {"role": "user", "content": "Turn the kitchen light on"},
@@ -54,6 +66,8 @@ class FakeClient:
         self.retained: list[dict] = []
         self.recalls: list[tuple] = []
         self.created: list[str] = []
+        self.created_kwargs: list[dict] = []
+        self.updated: list[tuple[str, dict]] = []
         self.list_calls = 0
         self.closed = False
         self.fail = False
@@ -100,6 +114,12 @@ class FakeClient:
         if self.fail:
             raise RuntimeError("server down")
         self.created.append(name)
+        self.created_kwargs.append({"name": name, **kwargs})
+
+    async def aupdate_mental_model(self, bank_id: str, model_id: str, **kwargs) -> None:
+        if self.fail:
+            raise RuntimeError("server down")
+        self.updated.append((model_id, kwargs))
 
     async def aclose(self) -> None:
         self.closed = True
@@ -443,7 +463,7 @@ async def test_ensure_mental_models_creates_only_missing_ones() -> None:
     await memory.async_ensure_mental_models()
     await memory.async_ensure_mental_models()
 
-    assert client.created == ["Interaction Preferences"]
+    assert client.created == EXPECTED_CREATED
     assert client.list_calls == 1
 
 
@@ -458,6 +478,57 @@ def test_mental_models_are_scoped_to_the_tags_we_actually_retain() -> None:
     """
     for definition in DEFAULT_MENTAL_MODELS:
         assert definition["tags"] == list(RETAIN_TAGS), definition["name"]
+
+
+async def test_mental_models_get_a_token_ceiling_and_delta_refresh() -> None:
+    """Every model is capped and refreshes by delta.
+
+    Both matter for cost: the cap bounds what is injected on every turn, and
+    delta is the mode where a configured decision model can skip the LLM call
+    entirely when no new memory could change the model.
+    """
+    memory, client = make_memory()
+
+    await memory.async_ensure_mental_models()
+
+    assert client.created_kwargs
+    for kwargs in client.created_kwargs:
+        assert kwargs["max_tokens"] == DEFAULT_MENTAL_MODEL_MAX_TOKENS
+        assert kwargs["trigger"]["mode"] == "delta"
+        assert kwargs["trigger"]["refresh_after_consolidation"] is True
+
+
+def test_mental_model_changes_reconciles_a_stale_model() -> None:
+    """A model created by an older version is brought in line, key by key.
+
+    Creation is name-checked, so a bank that already holds the models would
+    otherwise never pick up a corrected scope, a cap, or delta refresh.
+    """
+    definition = DEFAULT_MENTAL_MODELS[0]
+    stale = SimpleNamespace(
+        max_tokens=2048,
+        source_query="an older query",
+        tags=["preferences", "user"],
+        trigger={"mode": "full", "refresh_after_consolidation": False, "budget": None},
+    )
+
+    changes = _mental_model_changes(definition, stale)
+
+    assert changes["max_tokens"] == DEFAULT_MENTAL_MODEL_MAX_TOKENS
+    assert changes["source_query"] == definition["source_query"]
+    assert changes["tags"] == list(RETAIN_TAGS)
+    assert changes["trigger"]["mode"] == "delta"
+    assert changes["trigger"]["refresh_after_consolidation"] is True
+    # Settings we do not manage survive the update.
+    assert changes["trigger"]["budget"] is None
+
+    current = SimpleNamespace(
+        max_tokens=DEFAULT_MENTAL_MODEL_MAX_TOKENS,
+        source_query=definition["source_query"],
+        tags=list(RETAIN_TAGS),
+        trigger=dict(DEFAULT_MENTAL_MODEL_TRIGGER),
+    )
+    assert _mental_model_changes(definition, current) == {}
 
 
 async def test_ensure_mental_models_survives_an_unreachable_server() -> None:
@@ -481,7 +552,7 @@ async def test_failed_ensure_is_retried() -> None:
     client.fail = False
     await memory.async_ensure_mental_models()
 
-    assert client.created == ["Interaction Preferences"]
+    assert client.created == EXPECTED_CREATED
 
 
 async def test_retain_creates_mental_models_once_the_bank_exists() -> None:
@@ -494,7 +565,7 @@ async def test_retain_creates_mental_models_once_the_bank_exists() -> None:
         timestamp=datetime(2026, 11, 5, tzinfo=timezone.utc),
         agent_name="Agent",
     )
-    assert client.created == ["Interaction Preferences"]
+    assert client.created == EXPECTED_CREATED
 
     await memory.async_retain(
         HISTORY,
@@ -502,7 +573,7 @@ async def test_retain_creates_mental_models_once_the_bank_exists() -> None:
         timestamp=datetime(2026, 11, 5, tzinfo=timezone.utc),
         agent_name="Agent",
     )
-    assert client.created == ["Interaction Preferences"]
+    assert client.created == EXPECTED_CREATED
 
 
 async def test_close_closes_the_client() -> None:
