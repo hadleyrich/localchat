@@ -135,6 +135,24 @@ def test_retain_context_names_the_agent() -> None:
     assert "speech-to-text" in context
 
 
+def test_retain_context_excludes_ephemeral_state_and_capability_claims() -> None:
+    """The context tells the extractor what not to record.
+
+    Without it a voice bank fills with live sensor readings and the assistant's
+    own capability claims, which later recall presents as current truth.
+    """
+    context = build_retain_context("Kitchen Agent").lower()
+
+    assert "durable facts" in context
+    assert "output no facts for" in context
+    for ephemeral in ("occupancy", "presence", "motion", "device states"):
+        assert ephemeral in context
+    for capability in ("abilities", "tools", "internet access"):
+        assert capability in context
+    for filler in ("greetings", "thanks", "one-word commands"):
+        assert filler in context
+
+
 def test_options_default_to_disabled() -> None:
     """A config entry without the section leaves memory off."""
     options = options_from_data({})
