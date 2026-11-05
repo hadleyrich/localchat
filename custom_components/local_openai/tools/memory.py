@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
         recall_enabled: bool
 
-        async def async_remember(self, text: str) -> bool:
+        async def async_remember(self, text: str, user_id: str | None = None) -> bool:
             """Store one fact, returning whether it was stored."""
             ...
 
@@ -102,7 +102,10 @@ class RememberFactTool(llm.Tool):
         if not fact:
             return llm.ToolResult(data={"error": "Nothing to remember"}, error=True)
 
-        stored = await self._memory.async_remember(fact)
+        context = llm_context.context if llm_context.context else None
+        stored = await self._memory.async_remember(
+            fact, user_id=getattr(context, "user_id", None)
+        )
         LOGGER.debug("remember tool stored=%s fact=%r", stored, fact[:80])
         if not stored:
             return llm.ToolResult(

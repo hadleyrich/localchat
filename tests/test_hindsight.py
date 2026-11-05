@@ -816,3 +816,48 @@ async def test_house_manual_search_is_best_effort() -> None:
     client.fail = True
 
     assert await memory.async_search_house_manual("porch light") == ""
+
+
+async def test_retain_records_the_speaker() -> None:
+    """A signed-in speaker is tagged, so a per-person model can be scoped."""
+    memory, client = make_memory()
+
+    await memory.async_retain(
+        [{"role": "user", "content": "I take my coffee black"}],
+        conversation_id="conv-1",
+        timestamp=datetime(2026, 11, 5, tzinfo=timezone.utc),
+        agent_name="Jarvis",
+        user_id="user-abc",
+    )
+
+    assert client.retained[-1]["tags"] == ["conversation", "user:user-abc"]
+
+
+async def test_retain_without_a_speaker_keeps_one_tag() -> None:
+    """No user id means the shared tag only — never an empty 'user:' tag."""
+    memory, client = make_memory()
+
+    await memory.async_retain(
+        [{"role": "user", "content": "The bins go out on Tuesday"}],
+        conversation_id="conv-2",
+        timestamp=datetime(2026, 11, 5, tzinfo=timezone.utc),
+        agent_name="Jarvis",
+    )
+
+    assert client.retained[-1]["tags"] == ["conversation"]
+
+
+async def test_remember_records_the_speaker() -> None:
+    """A deliberate remember is attributed like any other retain."""
+    memory, client = make_memory()
+
+    await memory.async_remember("I take my coffee black", user_id="user-abc")
+
+    assert client.retained[-1]["tags"] == ["conversation", "user:user-abc"]
+
+
+def test_models_admit_untagged_memories() -> None:
+    """tags_match 'all' keeps a second writer's untagged facts visible."""
+    assert DEFAULT_MENTAL_MODEL_TRIGGER["tags_match"] == "all"
+    for definition in DEFAULT_MENTAL_MODELS:
+        assert "tags_match" not in definition, definition["name"]

@@ -43,6 +43,7 @@ from .const import (
     HOUSE_MANUAL_QUERY,
     LOGGER,
     RETAIN_TAGS,
+    USER_TAG_PREFIX,
 )
 
 if TYPE_CHECKING:
@@ -117,6 +118,20 @@ def _as_items(result: Any) -> list[Any]:
         if value is not None:
             return list(value)
     return list(result) if isinstance(result, (list, tuple)) else []
+
+
+def _retain_tags(user_id: str | None = None) -> list[str]:
+    """
+    Return the tags for one retain.
+
+    The shared tag is what the global mental models are scoped to; the speaker
+    tag is what lets a per-person model see only that person's memories. Both
+    are written together so neither scope has to be written twice.
+    """
+    tags = list(RETAIN_TAGS)
+    if user_id:
+        tags.append(f"{USER_TAG_PREFIX}{user_id}")
+    return tags
 
 
 def _field(item: Any, name: str) -> str:
@@ -489,6 +504,7 @@ class HindsightMemory:
         conversation_id: str,
         timestamp: datetime,
         agent_name: str,
+        user_id: str | None = None,
     ) -> None:
         """Store a finished conversation for extraction by Hindsight."""
         transcript = format_transcript(history)
@@ -505,7 +521,7 @@ class HindsightMemory:
                 timestamp=timestamp,
                 document_id=conversation_id,
                 update_mode="replace",
-                tags=list(RETAIN_TAGS),
+                tags=_retain_tags(user_id),
             )
         except Exception as err:
             LOGGER.warning("Could not store conversation in %s: %s", self.base_url, err)
@@ -524,7 +540,7 @@ class HindsightMemory:
         await self.async_ensure_mental_models()
         await self.async_ensure_house_manual()
 
-    async def async_remember(self, text: str) -> bool:
+    async def async_remember(self, text: str, user_id: str | None = None) -> bool:
         """
         Store one deliberate fact, separate from a conversation transcript.
 
@@ -548,7 +564,7 @@ class HindsightMemory:
                     "A fact the user explicitly asked the assistant to remember. "
                     "Store it as stated; do not add detail that was not given."
                 ),
-                tags=list(RETAIN_TAGS),
+                tags=_retain_tags(user_id),
                 update_mode="append",
             )
         except Exception as err:
