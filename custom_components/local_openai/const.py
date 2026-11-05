@@ -188,7 +188,10 @@ DEFAULT_MENTAL_MODELS = [
             "contextual facts about the user. Exclude any preferences related to how an "
             "assistant should speak, format responses, manage conversation flow, ask "
             "questions, handle timing, or support text to speech. Do not include "
-            "interaction rules, assistant capabilities, or response strategies."
+            "interaction rules, assistant capabilities, or response strategies. Write the "
+            "facts themselves as a short list. Never state what is missing, never "
+            "describe the records or their coverage, and never mention sources. If "
+            "nothing is known, output nothing."
         ),
         "tags": list(RETAIN_TAGS),
     },
@@ -201,7 +204,8 @@ DEFAULT_MENTAL_MODELS = [
             "level of detail. Report only preferences the user actually stated. "
             "Do not infer traits from the assistant's own behaviour, and do not "
             "invent generalisations. Write short second-person instructions, each "
-            "traceable to something the user said."
+            "traceable to something the user said. Never state what is missing or "
+            "describe the records. If nothing is known, output nothing."
         ),
         "tags": list(RETAIN_TAGS),
     },
@@ -212,7 +216,10 @@ DEFAULT_MENTAL_MODELS = [
             "what the user calls each one ('the big lamp', 'the back door'). Include any "
             "quirks or problems the user has mentioned about the house or its devices. "
             "Report only what the user said; do not infer devices from requests, and do "
-            "not include current readings or device states."
+            "not include current readings or device states. Write the facts "
+            "themselves as a short list. Never state what is missing, never "
+            "describe the records or their coverage, and never say what a reader "
+            "would or would not find. If nothing is known, output nothing."
         ),
         "tags": list(RETAIN_TAGS),
     },
@@ -223,7 +230,11 @@ DEFAULT_MENTAL_MODELS = [
             "relationships, birthdays -- and the recurring shape of their week: wake and "
             "sleep times, work patterns, regular commitments and events. Include only "
             "durable facts that recur; omit one-off visits and anything that was only "
-            "true for a moment."
+            "true for a moment. Write the facts themselves as a short list, "
+            "naming each person and what is known about them. Never state what is "
+            "missing or that records are incomplete, and never describe the "
+            "sources; a gap it announces reads as knowledge it does not have. If "
+            "nothing is known, output nothing."
         ),
         "tags": list(RETAIN_TAGS),
     },
