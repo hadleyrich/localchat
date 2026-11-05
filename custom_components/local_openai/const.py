@@ -168,6 +168,13 @@ DEFAULT_MENTAL_MODEL_MAX_TOKENS = 400
 DEFAULT_MENTAL_MODEL_TRIGGER = {
     "refresh_after_consolidation": True,
     "mode": "delta",
+    # Delta edits accumulate duplicates: measured over six delta refreshes, one
+    # person appeared three times because a richer bullet was added rather than
+    # replacing the existing one, and the stale copy was never retired. A
+    # scheduled full refresh regenerates from scratch to clear that drift, and
+    # is skipped when nothing has changed. The server reads cron in UTC, so this
+    # is Sunday 03:00 in New Zealand (UTC+13).
+    "full_refresh_cron": "0 14 * * 6",
 }
 
 DEFAULT_MENTAL_MODELS = [
